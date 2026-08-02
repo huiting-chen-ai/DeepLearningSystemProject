@@ -544,7 +544,7 @@ def fft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
         return inp.copy()
-    w = exp(-2j*math.pi/n)
+    w = numpy.exp(-2j*math.pi/n)
     Pe = inp[0:n:2].copy()
     Po = inp[1:n:2].copy()
     ye = fft1d_recurse(Pe)
@@ -560,7 +560,7 @@ def ifft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
         return inp.copy()
-    w = exp(2j*math.pi/n)
+    w = numpy.exp(2j*math.pi/n)
     xe = inp[0:n:2].copy()
     xo = inp[1:n:2].copy()
     ye = ifft1d_recurse(xe)
