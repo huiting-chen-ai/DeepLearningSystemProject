@@ -717,3 +717,17 @@ class Real(TensorOp):
 
 def real(a):
     return Real()(a)
+
+# Pad axes 2 for padding[0], 3 for padding[1]
+class Pad(TensorOp):
+    def __init__(self, padding):
+        self.padding = padding 
+    def compute(self, A):
+        out = A.pad(((0, 0), (0, 0), (0, self.padding[0]), (0, self.padding[1])))
+        return out
+    def gradient(self, out_grad, node):
+        _, _, H, W = node.inputs[0].shape
+        return out_grad[:, :, :H, :W]
+
+def pad(a, padding):
+    return pad(padding)(a)
