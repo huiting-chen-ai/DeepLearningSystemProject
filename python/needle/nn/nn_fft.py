@@ -47,7 +47,7 @@ class FFTConv2d(Module):
         conv_H = H + self.kernel_size - 1
         conv_W = W + self.kernel_size - 1
 
-        in_padded = ndarray.full((N, C, conv_H, conv_W), 0+0j, dtype=complex, device=x.device)
+        in_padded = ndarray.full((N, C, conv_H, conv_W), 0+0j, dtype="complex32", device=x.device)
         in_padded[..., :H, :W] = x.astype(complex)
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
@@ -59,14 +59,14 @@ class FFTConv2d(Module):
         K = self.weight  # (kh, kw, in_ch, out_ch)
         # create zero-padded kernel in top-left and then FFT
         K_pad = ndarray.full((self.in_channels, self.out_channels, conv_H, conv_W), 0+0j,
-                                dtype="complex64", device=K.device)
+                                dtype="complex32", device=K.device)
         # place kernel at top-left; note flipping: convolution uses cross-correlation unless you flip kernel.
         # to implement convolution via multiplication we must place kernel so that linear convolution matches spatial conv.
         # easiest: flip kernel spatially before placing so that multiplication corresponds to conv.
         K = ops.transpose(K, (0, 2))
         K = ops.transpose(K, (1, 3))
         K_flipped = ops.flip(K, (2, 3))  # -> (in_ch, out_ch, kh, kw) flipped
-        K_pad[..., :kh, :kw] = K_flipped.astype("complex64")
+        K_pad[..., :kh, :kw] = K_flipped.astype("complex32")
 
         # FFT of kernels across spatial dims (per in->out pair)
         K_pad = ops.reshape(K_pad, (self.in_channels*self.out_channels, conv_H, conv_W))
