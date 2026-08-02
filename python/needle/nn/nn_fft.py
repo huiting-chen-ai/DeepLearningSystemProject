@@ -48,7 +48,7 @@ class FFTConv2d(Module):
         conv_W = W + self.kernel_size - 1
 
         in_padded = ndarray.full((N, C, conv_H, conv_W), 0.0, dtype="complex32", device=x.device)
-        in_padded[..., :H, :W] = x.cached_data
+        in_padded[:, :, :H, :W] = x.cached_data
         # for n in range(N):
         #     for c in range(C):
         #         for h in range(H):
