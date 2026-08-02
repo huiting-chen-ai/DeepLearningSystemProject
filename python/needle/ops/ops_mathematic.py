@@ -2,6 +2,7 @@
 
 from numbers import Number
 from typing import Optional, List, Tuple, Union
+import math
 
 from ..autograd import NDArray
 from ..autograd import Op, Tensor, Value, TensorOp
@@ -536,4 +537,183 @@ class Conv(TensorOp):
 def conv(a, b, stride=1, padding=1):
     return Conv(stride, padding)(a, b)
 
+def next_pow2(n):
+    return 1 << ((n - 1).bit_length())
 
+def fft1d_recurse(inp):
+    n = len(inp)
+    if n == 1:
+        return inp.copy()
+    w = exp(-2j*math.pi/n)
+    Pe = inp[0:n:2].copy()
+    Po = inp[1:n:2].copy()
+    ye = fft1d_recurse(Pe)
+    yo = fft1d_recurse(Po)
+    result = array_api.empty(n, dtype=complex, device=inp.device)
+    for k in range(n//2):
+        tw = (w**k)*yo[k]
+        result[k] = ye[k] + tw
+        result[k+n//2] = ye[k] - tw
+    return result
+
+def ifft1d_recurse(inp):
+    n = len(inp)
+    if n == 1:
+        return inp.copy()
+    w = exp(2j*math.pi/n)
+    xe = inp[0:n:2].copy()
+    xo = inp[1:n:2].copy()
+    ye = ifft1d_recurse(xe)
+    yo = ifft1d_recurse(xo)
+    result = array_api.empty(n, dtype=complex, device=inp.device)
+    for k in range(n // 2):
+        tw = (w**k)*yo[k]
+        result[k] = ye[k] + tw
+        result[k + n // 2] = ye[k] - tw
+    return result
+
+class FFT1d(TensorOp):
+    def compute(self, inp):
+        orig_n = len(inp)
+        padded_n = next_pow2(orig_n)
+        new_inp = array_api.full(padded_n, 0, dtype=complex, device=inp.device)
+        for i, elem in enumerate(inp):
+            new_inp[i] = elem
+        result = fft1d_recurse(new_inp)
+        return result
+    def gradient(self, out_grad, node):
+        m = len(out_grad)
+        x_padded = ifft1d_recurse(out_grad)
+        inv_m = 1.0 / m
+        for i in range(m):
+            x_padded[i] = x_padded[i] * inv_m
+        orig = len(node.inputs[0])
+        grad_x = array_api.full(orig, 0, dtype=complex, device=out_grad.device)
+        for i in range(orig):
+            grad_x[i] = x_padded[i]
+        return grad_x
+
+
+def fft1d(a):
+    return FFT1d()(a)
+
+
+def fft2d_recurse(inp2d):
+    H, W = inp2d.shape
+    row_fft = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    for r in range(H):
+        row_fft[r, :] = fft1d_recurse(inp2d[r, :].copy())
+    out = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    col_buffer = array_api.empty(H, dtype=complex, device=inp2d.device)
+    for c in range(W):
+        for r in range(H):
+            col_buffer[r] = row_fft[r, c]
+        col_fft = fft1d_recurse(col_buffer)
+        for r in range(H):
+            out[r, c] = col_fft[r]
+    return out
+
+def ifft2d_recurse(inp2d):
+    H, W = inp2d.shape
+    row_ifft = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    for r in range(H):
+        row_ifft[r, :] = ifft1d_recurse(inp2d[r, :].copy())
+    out = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    col_buffer = array_api.empty(H, dtype=complex, device=inp2d.device)
+    for c in range(W):
+        for r in range(H):
+            col_buffer[r] = row_ifft[r, c]
+        col_ifft = ifft1d_recurse(col_buffer)
+        for r in range(H):
+            out[r, c] = col_ifft[r]
+    return out
+
+class FFT2d(TensorOp):
+
+    def compute(self, inp):
+        B, H0, W0 = inp.shape
+        H = next_pow2(H0)
+        W = next_pow2(W0)
+        padded = array_api.full((B, H, W), 0+0j, dtype=complex, device=inp.device)
+        result = array_api.full((B, H0, W0), 0+0j, dtype=complex, device=inp.device)
+        for b in range(B):
+            for r in range(H0):
+                for c in range(W0):
+                    padded[b, r, c] = inp[b, r, c]
+            result[b] = fft2d_recurse(padded[b])[:H0, :W0]     
+        return result
+
+    def gradient(self, out_grad, node):
+        B, H0, W0 = node.inputs[0].shape
+        _, H, W = out_grad.shape
+        H = next_pow2(H)
+        W = next_pow2(W)
+        padded = array_api.full((B, H, W), 0+0j, dtype=complex, device=out_grad.device)
+        grad = array_api.full((B, H0, W0), 0+0j, dtype=node.inputs[0].dtype, device=out_grad.device)
+        for b in range(B):
+            for r in range(H0):
+                for c in range(W0):
+                    padded[b, r, c] = out_grad[b, r, c]
+            x_padded = ifft2d_recurse(padded[b])
+            for r in range(H0):
+                for c in range(W0):
+                    grad[b, r, c] = x_padded[b, r, c].real
+        return grad
+
+def fft2d(a):
+    return FFT2d()(a)
+
+class IFFT2d(TensorOp):
+    def compute(self, inp):
+        B, H0, W0 = inp.shape
+        H = next_pow2(H0)
+        W = next_pow2(W0)
+        padded = array_api.full((B, H, W), 0+0j, dtype=complex, device=inp.device)
+        result = array_api.full((B, H0, W0), 0+0j, dtype=complex, device=inp.device)
+        for b in range(B):
+            for r in range(H0):
+                for c in range(W0):
+                    padded[b, r, c] = inp[b, r, c]
+            result[b] = ifft2d_recurse(padded[b])[:H0, :W0]     
+        return result
+
+    def gradient(self, out_grad, node):
+        B, H0, W0 = node.inputs[0].shape
+        _, H, W = out_grad.shape
+        H = next_pow2(H)
+        W = next_pow2(W)
+        padded = array_api.full((B, H, W), 0+0j, dtype=complex, device=out_grad.device)
+        grad = array_api.full((B, H0, W0), 0+0j, dtype=complex, device=out_grad.device)
+        for b in range(B):
+            for r in range(H0):
+                for c in range(W0):
+                    padded[b, r, c] = out_grad[b, r, c]
+            x_padded = fft2d_recurse(padded[b])
+            grad[b] = x_padded[:H0, :W0]
+        return grad
+
+def ifft2d(a):
+    return IFFT2d()(a)
+
+class Real(TensorOp):
+    def compute(self, a):
+        out = array_api.full(a.shape, 0, dtype=float, device=a.device)
+        N, C, H, W = a.shape
+        for n in range(N):
+            for c in range(C):
+                for h in range(H):
+                    for w in range(W):
+                        out[n, c, h, w] = a[n, c, h, w].real
+        return out
+    def gradient(self, out_grad, node):
+        out = array_api.full(node.inputs[0].shape, 0, dtype=complex, device=out_grad.device)
+        N, C, H, W = out.shape
+        for n in range(N):
+            for c in range(C):
+                for h in range(H):
+                    for w in range(W):
+                        out[n, c, h, w] = complex(out_grad[n, c, h, w])
+        return out
+
+def real(a):
+    return Real()(a)
