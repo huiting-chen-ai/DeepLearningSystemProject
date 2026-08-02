@@ -730,4 +730,4 @@ class Pad(TensorOp):
         return out_grad[:, :, :H, :W]
 
 def pad(a, padding):
-    return pad(padding)(a)
+    return Pad(padding)(a)
