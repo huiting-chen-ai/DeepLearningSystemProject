@@ -549,7 +549,7 @@ def fft1d_recurse(inp):
     Po = inp[1:n:2]
     ye = fft1d_recurse(Pe)
     yo = fft1d_recurse(Po)
-    result = array_api.empty(n, dtype=complex, device=inp.device)
+    result = array_api.empty((n,), dtype="complex32", device=inp.device)
     for k in range(n//2):
         tw = (w**k)*yo[k]
         result[k] = ye[k] + tw
