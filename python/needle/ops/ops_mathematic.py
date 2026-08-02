@@ -614,7 +614,7 @@ def fft2d_recurse(inp2d):
     return out
 
 def ifft2d_recurse(inp2d):
-    H, W = inp2d.shape
+    _, H, W = inp2d.shape
     row_ifft = array_api.empty((H, W), dtype=complex, device=inp2d.device)
     for r in range(H):
         row_ifft[r, :] = ifft1d_recurse(inp2d[r, :].copy())
