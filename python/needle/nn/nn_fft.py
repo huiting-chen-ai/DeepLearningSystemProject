@@ -47,7 +47,7 @@ class FFTConv2d(Module):
         conv_H = H + self.kernel_size - 1
         conv_W = W + self.kernel_size - 1
 
-        in_padded = ndarray.full((N, C, conv_H, conv_W), dtype=complex, device=x.device)
+        in_padded = ndarray.full((N, C, conv_H, conv_W), 0+0j, dtype=complex, device=x.device)
         in_padded[..., :H, :W] = x.astype(complex)
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
