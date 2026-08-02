@@ -53,7 +53,7 @@ class FFTConv2d(Module):
             for c in range(C):
                 for h in range(H):
                     for w in range(W):
-                        in_padded[n, c, h, w] = x[n, c, h, w]
+                        in_padded[n, c, h, w] = x[n, c, h, w].astype("complex32")
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
         I_fft = ops.fft2d(in_padded)
