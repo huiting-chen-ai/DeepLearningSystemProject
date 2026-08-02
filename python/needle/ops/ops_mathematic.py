@@ -640,7 +640,7 @@ class FFT2d(TensorOp):
             for r in range(H0):
                 for c in range(W0):
                     padded[b, r, c] = inp[b, r, c]
-            result[b] = fft2d_recurse(padded[b])[:H0, :W0]     
+            result[b] = fft2d_recurse(padded[b, :, :])[:H0, :W0]     
         return result
 
     def gradient(self, out_grad, node):
