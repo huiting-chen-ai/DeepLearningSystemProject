@@ -543,10 +543,10 @@ def next_pow2(n):
 def fft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
-        return inp.copy()
+        return inp
     w = numpy.exp(-2j*math.pi/n)
-    Pe = inp[0:n:2].copy()
-    Po = inp[1:n:2].copy()
+    Pe = inp[0:n:2]
+    Po = inp[1:n:2]
     ye = fft1d_recurse(Pe)
     yo = fft1d_recurse(Po)
     result = array_api.empty(n, dtype=complex, device=inp.device)
