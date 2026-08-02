@@ -541,7 +541,7 @@ def next_pow2(n):
     return 1 << ((n - 1).bit_length())
 
 def fft1d_recurse(inp):
-    n = len(inp)
+    n = inp.shape[0]
     if n == 1:
         return inp.copy()
     w = exp(-2j*math.pi/n)
@@ -557,7 +557,7 @@ def fft1d_recurse(inp):
     return result
 
 def ifft1d_recurse(inp):
-    n = len(inp)
+    n = inp.shape[0]
     if n == 1:
         return inp.copy()
     w = exp(2j*math.pi/n)
