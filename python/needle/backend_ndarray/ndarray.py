@@ -48,7 +48,6 @@ class BackendDevice:
 
     def empty(self, shape: tuple[int, ...], dtype: str = "float32") -> "NDArray":
         dtype = "float32" if dtype is None else dtype
-        assert dtype == "float32"
         return NDArray.make(shape, device=self)
 
     def full(self, shape: tuple[int, ...], fill_value: float, dtype: str = "float32") -> "NDArray":
