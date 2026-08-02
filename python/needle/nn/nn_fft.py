@@ -48,12 +48,12 @@ class FFTConv2d(Module):
         conv_W = W + self.kernel_size - 1
 
         in_padded = ndarray.full((N, C, conv_H, conv_W), 0.0, dtype="complex32", device=x.device)
-        # in_padded[..., :H, :W] = x
-        for n in range(N):
-            for c in range(C):
-                for h in range(H):
-                    for w in range(W):
-                        in_padded[n, c, h, w] = x[n, c, h, w].astype("complex32")
+        in_padded[..., :H, :W] = x.cached_data
+        # for n in range(N):
+        #     for c in range(C):
+        #         for h in range(H):
+        #             for w in range(W):
+        #                 in_padded[n, c, h, w] = x[n, c, h, w].astype("complex32")
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
         I_fft = ops.fft2d(in_padded)
