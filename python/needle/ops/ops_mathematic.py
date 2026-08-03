@@ -551,7 +551,7 @@ def fft1d_recurse(inp):
     yo = fft1d_recurse(Po)
     result = array_api.empty((n,), dtype="complex32", device=inp.device)
     for k in range(n//2):
-        tw = (w**k)*yo[k]
+        tw = (w**k)*yo.numpy()[k]
         result[k] = ye[k] + tw
         result[k+n//2] = ye[k] - tw
     return result
@@ -601,7 +601,7 @@ def fft1d(a):
 def fft2d_recurse(inp2d):
     _, H, W = inp2d.shape
     inp2d = array_api.reshape(inp2d.compact(), (H, W))
-    row_fft = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    row_fft = array_api.empty((H, W), dtype="complex32", device=inp2d.device)
     for r in range(H):
         inp1d = array_api.reshape(inp2d[r, :].compact(), (W,))
         row_fft[r, :] = fft1d_recurse(inp1d)
@@ -617,7 +617,7 @@ def fft2d_recurse(inp2d):
 
 def ifft2d_recurse(inp2d):
     _, H, W = inp2d.shape
-    row_ifft = array_api.empty((H, W), dtype=complex, device=inp2d.device)
+    row_ifft = array_api.empty((H, W), dtype="complex32", device=inp2d.device)
     for r in range(H):
         row_ifft[r, :] = ifft1d_recurse(inp2d[r, :].copy())
     out = array_api.empty((H, W), dtype=complex, device=inp2d.device)
