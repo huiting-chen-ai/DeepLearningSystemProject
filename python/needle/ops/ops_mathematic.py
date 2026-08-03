@@ -675,11 +675,15 @@ class IFFT2d(TensorOp):
         W = next_pow2(W0)
         padded = array_api.full((B, H, W), 0.0, dtype="complex32", device=inp.device)
         result = array_api.full((B, H0, W0), 0.0, dtype="complex32", device=inp.device)
+        # for b in range(B):
+        #     for r in range(H0):
+        #         for c in range(W0):
+        #             padded[b, r, c] = inp[b, r, c]
+        #     result[b] = ifft2d_recurse(padded[b])[:H0, :W0]  
+
+        padded[:B, :H0, :W0] = inp
         for b in range(B):
-            for r in range(H0):
-                for c in range(W0):
-                    padded[b, r, c] = inp[b, r, c]
-            result[b] = ifft2d_recurse(padded[b])[:H0, :W0]     
+            result[b, :H0, :W0] = ifft2d_recurse(padded[b, :, :])[:H0, :W0]
         return result
 
     def gradient(self, out_grad, node):
