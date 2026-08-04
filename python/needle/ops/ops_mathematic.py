@@ -745,7 +745,7 @@ def pad(a, padding):
 
 class Crop(TensorOp):
     def __init__(self, ind):
-        self.crop = ind
+        self.ind = ind
     def compute(self, A):
         out = A[:, :, :self.ind[0], :self.ind[1]]
         return out
