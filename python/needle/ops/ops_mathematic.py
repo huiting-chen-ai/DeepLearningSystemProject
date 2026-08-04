@@ -714,7 +714,7 @@ class Real(TensorOp):
             for c in range(C):
                 for h in range(H):
                     for w in range(W):
-                        out[n, c, h, w] = a[n, c, h, w].real
+                        out[n, c, h, w] = a.numpy()[n, c, h, w].real
         return out
     def gradient(self, out_grad, node):
         out = array_api.full(node.inputs[0].shape, 0, dtype=complex, device=out_grad.device)
