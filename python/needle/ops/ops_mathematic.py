@@ -742,3 +742,18 @@ class Pad(TensorOp):
 
 def pad(a, padding):
     return Pad(padding)(a)
+
+class Crop(TensorOp):
+    def __init__(self, ind):
+        self.crop = ind
+    def compute(self, A):
+        out = A[:, :, :self.ind[0], :self.ind[1]]
+        return out
+    def gradient(self, out_grad, node):
+        _, _, H, W = node.inputs[0].shape
+        pad1 = H-self.ind[0]
+        pad2 = W-self.ind[1]
+        return pad(out_grad, (pad1, pad2))
+
+def crop(a, ind):
+    return Crop(ind)(a)

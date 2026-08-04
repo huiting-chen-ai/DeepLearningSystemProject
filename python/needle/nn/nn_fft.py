@@ -98,7 +98,8 @@ class FFTConv2d(Module):
 
         # normalize: depending on your FFT conventions, if ifft applies 1/(Hf*Wf) then ok; otherwise divide here
         # Crop to convolution spatial size conv_H x conv_W (top-left)
-        y_cropped = y_padded[..., :conv_H, :conv_W]   # shape (N, out_ch, conv_H, conv_W)
+        # y_cropped = y_padded[..., :conv_H, :conv_W]   # shape (N, out_ch, conv_H, conv_W)
+        y_cropped = ops.crop(y_padded, (conv_H, conv_W))
 
 
         # apply stride by subsampling
