@@ -559,13 +559,13 @@ def fft1d_recurse(inp):
 def ifft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
-        return inp.copy()
+        return inp
     w = numpy.exp(2j*math.pi/n)
-    xe = inp[0:n:2].copy()
-    xo = inp[1:n:2].copy()
+    xe = inp[0:n:2]
+    xo = inp[1:n:2]
     ye = ifft1d_recurse(xe)
     yo = ifft1d_recurse(xo)
-    result = array_api.empty(n, dtype=complex, device=inp.device)
+    result = array_api.empty((n,), dtype="complex32", device=inp.device)
     for k in range(n // 2):
         tw = (w**k)*yo[k]
         result[k] = ye[k] + tw
