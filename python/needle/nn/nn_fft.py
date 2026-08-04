@@ -109,11 +109,11 @@ class FFTConv2d(Module):
         # add bias if present: bias shape (out_ch,) -> reshape to (1, out_ch, 1, 1)
         if self.bias is not None:
             b = ops.reshape(self.bias, (1, self.out_channels, 1, 1))
-            b = ops.broadcast_to(b, y_same.shape)
-            y_same = y_same + b
+            b = ops.broadcast_to(b, y_cropped.shape)
+            y_cropped = y_cropped + b
 
         # final output: ensure real dtype if inputs/weights are real (drop tiny imag part)
-        out = ops.real(y_same)
+        out = ops.real(y_cropped)
         # return in NCHW: it already is (N, out_ch, H_out, W_out)
         return out
 
