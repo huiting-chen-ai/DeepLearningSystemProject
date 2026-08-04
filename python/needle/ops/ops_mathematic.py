@@ -567,7 +567,7 @@ def ifft1d_recurse(inp):
     yo = ifft1d_recurse(xo)
     result = array_api.empty((n,), dtype="complex32", device=inp.device)
     for k in range(n // 2):
-        tw = (w**k)*yo[k]
+        tw = (w**k)*yo.numpy()[k]
         result[k] = ye[k] + tw
         result[k + n // 2] = ye[k] - tw
     return result
