@@ -89,7 +89,7 @@ class FFTConv2d(Module):
         I_fft_b = ops.broadcast_to(ops.reshape(I_fft, (N, self.in_channels, 1, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
         K_fft_b = ops.broadcast_to(ops.reshape(K_fft, (1, self.in_channels, self.out_channels, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
         # elementwise multiply and sum over in_channels -> (N, out_ch, Hf, Wf)
-        Y_fft = ops.summation(I_fft_b * K_fft_b, axis=1)  # sum over in_channels, result (N, out_ch, Hf, Wf)
+        Y_fft = ops.summation(I_fft_b * K_fft_b, axes=1)  # sum over in_channels, result (N, out_ch, Hf, Wf)
 
         # inverse FFT to spatial domain
 
