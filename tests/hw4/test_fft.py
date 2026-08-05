@@ -257,7 +257,7 @@ def test_op_fft(Z_shape, backward, device):
 
 
 fft_1d_shapes = [
-    ((16))
+    ((16,))
 ]
 @pytest.mark.parametrize("Z_shape", fft_1d_shapes)
 @pytest.mark.parametrize("device", _DEVICES)
