@@ -229,7 +229,7 @@ op_conv_shapes = [
 @pytest.mark.parametrize("Z_shape", op_conv_shapes)
 @pytest.mark.parametrize("device", _DEVICES)
 @pytest.mark.parametrize("backward", [True, False], ids=["backward", "forward"])
-def test_op_fft(Z_shape, W_shape, stride, padding, backward, device):
+def test_op_fft(Z_shape, backward, device):
     np.random.seed(0)
     import torch
     _Z = np.random.randn(*Z_shape)*5
