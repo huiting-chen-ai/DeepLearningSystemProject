@@ -220,3 +220,36 @@ def test_nn_conv_backward(s, cin, cout, k, stride, device):
     assert np.linalg.norm(g.weight.grad.data.numpy() - f.weight.grad.cached_data.numpy().transpose(3, 2, 0, 1)) < 1e-3, "weight gradients match"
     assert np.linalg.norm(g.bias.grad.data.numpy() - f.bias.grad.cached_data.numpy()) < 1e-3, "bias gradients match"
     assert np.linalg.norm(z.grad.data.numpy() - x.grad.cached_data.numpy()) < 1e-3, "input gradients match"
+
+
+
+op_conv_shapes = [
+    ((5, 16, 16))
+]
+@pytest.mark.parametrize("Z_shape", op_conv_shapes)
+@pytest.mark.parametrize("device", _DEVICES)
+@pytest.mark.parametrize("backward", [True, False], ids=["backward", "forward"])
+def test_op_conv(Z_shape, W_shape, stride, padding, backward, device):
+    np.random.seed(0)
+    import torch
+    _Z = np.random.randn(*Z_shape)*5
+    _Z = _Z.astype(np.float32)
+    Z = ndl.Tensor(_Z, device=device)
+    y = ndl.fft2d(Z)
+    y2 = y.sum()
+    # if backward:
+    #     y2.backward()
+    Ztch = torch.Tensor(_Z).float()
+    Ztch.requires_grad=True
+    out = torch.fft.fft2(Ztch)
+    out2 = out.sum()
+    # if backward:
+    #     out2.backward()
+    # if backward:
+    #     err1 = np.linalg.norm(Ztch.grad.numpy() - Z.grad.numpy())
+    #     err2 = np.linalg.norm(Wtch.grad.numpy() - W.grad.numpy())
+    err3 = np.linalg.norm(out2.detach().numpy() - y2.numpy())
+    # if backward:
+    #     assert err1 < 1e-2, "input grads match"
+    #     assert err2 < 1e-2, "weight grads match"
+    assert err3 < 1e-1, "outputs match %s, %s" % (y2, out2)
