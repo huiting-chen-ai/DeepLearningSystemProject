@@ -547,11 +547,11 @@ def fft1d_recurse(inp):
     w = numpy.exp(-2j*math.pi/n)
     Pe = inp[0:n:2]
     Po = inp[1:n:2]
-    ye = fft1d_recurse(Pe)
-    yo = fft1d_recurse(Po)
+    ye = fft1d_recurse(Pe).numpy()
+    yo = fft1d_recurse(Po).numpy()
     result = array_api.empty((n,), dtype="complex32", device=inp.device)
     for k in range(n//2):
-        tw = (w**k)*yo.numpy()[k]
+        tw = (w**k)*yo[k]
         result[k] = ye[k] + tw
         result[k+n//2] = ye[k] - tw
     return result
