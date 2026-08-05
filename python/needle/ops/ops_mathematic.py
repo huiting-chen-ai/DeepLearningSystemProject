@@ -543,13 +543,15 @@ def next_pow2(n):
 def fft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
-        return inp
+        out = array_api.empty((1,), dtype="complex64", device=inp.device,)
+        out[0] = inp[0]
+        return out
     w = numpy.exp(-2j*math.pi/n)
     Pe = inp[0:n:2]
     Po = inp[1:n:2]
     ye = fft1d_recurse(Pe).numpy()
     yo = fft1d_recurse(Po).numpy()
-    result = array_api.empty((n,), dtype="complex32", device=inp.device)
+    result = array_api.empty((n,), dtype="complex64", device=inp.device)
     for k in range(n//2):
         tw = (w**k)*yo[k]
         result[k] = ye[k] + tw
@@ -565,7 +567,7 @@ def ifft1d_recurse(inp):
     xo = inp[1:n:2]
     ye = ifft1d_recurse(xe)
     yo = ifft1d_recurse(xo)
-    result = array_api.empty((n,), dtype="complex32", device=inp.device)
+    result = array_api.empty((n,), dtype="complex64", device=inp.device)
     for k in range(n // 2):
         tw = (w**k)*yo.numpy()[k]
         result[k] = ye[k] + tw
@@ -576,7 +578,7 @@ class FFT1d(TensorOp):
     def compute(self, inp):
         orig_n = inp.shape[0]
         padded_n = next_pow2(orig_n)
-        new_inp = array_api.full((padded_n, ), 0, dtype="complex32", device=inp.device)
+        new_inp = array_api.full((padded_n, ), 0, dtype=inp.dtype, device=inp.device)
         new_inp[:orig_n] = inp
         result = fft1d_recurse(new_inp)
         return result
