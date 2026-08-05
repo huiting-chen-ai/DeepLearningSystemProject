@@ -544,7 +544,7 @@ def fft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
         out = array_api.empty((1,), dtype="complex64", device=inp.device,)
-        out[0] = complex(inp[0])
+        out[0] = complex(inp.numpy()[0])
         return out
     w = numpy.exp(-2j*math.pi/n)
     Pe = inp[0:n:2]
