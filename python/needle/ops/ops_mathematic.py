@@ -606,13 +606,9 @@ def fft2d_recurse(inp2d):
         inp1d = array_api.reshape(inp2d[r, :].compact(), (W,))
         row_fft[r, :] = fft1d_recurse(inp1d)
     out = array_api.empty((H, W), dtype="complex32", device=inp2d.device)
-    col_buffer = array_api.empty((H,), dtype="complex32", device=inp2d.device)
     for c in range(W):
-        for r in range(H):
-            col_buffer[r] = row_fft[r, c]
-        col_fft = fft1d_recurse(col_buffer)
-        for r in range(H):
-            out[r, c] = col_fft[r]
+        inpcol = array_api.reshape(inp2d[:, c].compact(), (H,))
+        out[:, c] = fft1d_recurse(inpcol)
     return out
 
 def ifft2d_recurse(inp2d):
