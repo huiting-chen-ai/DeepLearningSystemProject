@@ -576,7 +576,7 @@ class FFT1d(TensorOp):
     def compute(self, inp):
         orig_n = inp.shape[0]
         padded_n = next_pow2(orig_n)
-        new_inp = array_api.full(padded_n, 0, dtype="complex32", device=inp.device)
+        new_inp = array_api.full((padded_n, ), 0, dtype="complex32", device=inp.device)
         for i, elem in enumerate(inp):
             new_inp[i] = elem
         result = fft1d_recurse(new_inp)
