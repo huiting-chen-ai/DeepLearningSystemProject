@@ -286,4 +286,5 @@ def test_op_fft_1d(Z_shape, backward, device):
     #     assert err1 < 1e-2, "input grads match"
     #     assert err2 < 1e-2, "weight grads match"
     assert err3 < 1e-1, "outputs match %s, %s" % (y2, out2)
+    assert y.dtype == "complex64"
     assert np.linalg.norm(y.numpy() - out.detach().numpy()) < 1e-3
