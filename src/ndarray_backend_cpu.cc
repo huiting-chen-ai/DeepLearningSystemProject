@@ -494,12 +494,12 @@ void ReduceSum(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, siz
 // }
 
 template <typename scalar_t>
-void register_array_type(py::module& m, const std::string& suffix) {
+void register_array_type(pybind11::module& m, const std::string& suffix) {
   using Array = AlignedArray<scalar_t>;
   std::string class_name = "Array" + suffix;
 
-  py::class_<Array>(m, class_name.c_str())
-      .def(py::init<size_t>(), py::return_value_policy::take_ownership)
+  pybind11::class_<Array>(m, class_name.c_str())
+      .def(pybind11::init<size_t>(), pybind11::return_value_policy::take_ownership)
       .def("ptr", &Array::ptr_as_int)
       .def_readonly("size", &Array::size);
 
@@ -511,12 +511,12 @@ void register_array_type(py::module& m, const std::string& suffix) {
           std::transform(numpy_strides.begin(), numpy_strides.end(),
                          numpy_strides.begin(),
                          [](size_t c) { return c * sizeof(scalar_t); });
-          return py::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
+          return pybind11::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
         });
 
   // from numpy
   m.def(("from_numpy" + suffix).c_str(),
-        [](py::array_t<scalar_t> a, Array* out) {
+        [](pybind11::array_t<scalar_t> a, Array* out) {
           std::memcpy(out->ptr, a.request().ptr, out->size * sizeof(scalar_t));
         });
 
@@ -550,7 +550,6 @@ void register_real_only_ops(py::module& m, const std::string& suffix) {
   m.def(("reduce_max" + suffix).c_str(), ReduceMax<scalar_t>);
 }
 PYBIND11_MODULE(ndarray_backend_cpu, m) {
-  namespace py = pybind11;
   using namespace needle;
   using namespace cpu;
 
