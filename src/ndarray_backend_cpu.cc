@@ -6,13 +6,23 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <complex>
+#include <cstddef>
+
 namespace needle {
 namespace cpu {
 
 #define ALIGNMENT 256
 #define TILE 8
-typedef float scalar_t;
-const size_t ELEM_SIZE = sizeof(scalar_t);
+template <typename scalar_t>
+struct ScalarTraits {
+    using type = scalar_t;
+    static constexpr size_t ELEM_SIZE = sizeof(scalar_t);
+    static constexpr size_t ELEMS_PER_TILE = TILE;
+};
+using FloatTraits   = ScalarTraits<float>;
+using IntTraits     = ScalarTraits<int>;
+using ComplexTraits  = ScalarTraits<std::complex<float>>;
 
 
 /**
@@ -20,9 +30,10 @@ const size_t ELEM_SIZE = sizeof(scalar_t);
  * memory.  This alignment should be at least TILE * ELEM_SIZE, though we make it even larger
  * here by default.
  */
+template <typename scalar_t = float>
 struct AlignedArray {
   AlignedArray(const size_t size) {
-    int ret = posix_memalign((void**)&ptr, ALIGNMENT, size * ELEM_SIZE);
+    int ret = posix_memalign((void**)&ptr, ALIGNMENT, size * sizeof(scalar_t));
     if (ret != 0) throw std::bad_alloc();
     this->size = size;
   }
@@ -34,18 +45,17 @@ struct AlignedArray {
 
 
 
-void Fill(AlignedArray* out, scalar_t val) {
-  /**
-   * Fill the values of an aligned array with val
-   */
-  for (int i = 0; i < out->size; i++) {
+template <typename scalar_t>
+void Fill(AlignedArray<scalar_t>* out, scalar_t val) {
+  for (size_t i = 0; i < out->size; i++) {
     out->ptr[i] = val;
   }
 }
 
 
 
-void Compact(const AlignedArray& a, AlignedArray* out, std::vector<int32_t> shape,
+template <typename scalar_t>
+void Compact(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, std::vector<int32_t> shape,
              std::vector<int32_t> strides, size_t offset) {
   /**
    * Compact an array in memory
@@ -78,7 +88,8 @@ void Compact(const AlignedArray& a, AlignedArray* out, std::vector<int32_t> shap
   /// END SOLUTION
 }
 
-void EwiseSetitem(const AlignedArray& a, AlignedArray* out, std::vector<int32_t> shape,
+template <typename scalar_t>
+void EwiseSetitem(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, std::vector<int32_t> shape,
                   std::vector<int32_t> strides, size_t offset) {
   /**
    * Set items in a (non-compact) array
@@ -107,7 +118,8 @@ void EwiseSetitem(const AlignedArray& a, AlignedArray* out, std::vector<int32_t>
   /// END SOLUTION
 }
 
-void ScalarSetitem(const size_t size, scalar_t val, AlignedArray* out, std::vector<int32_t> shape,
+template <typename scalar_t>
+void ScalarSetitem(const size_t size, scalar_t val, AlignedArray<scalar_t>* out, std::vector<int32_t> shape,
                    std::vector<int32_t> strides, size_t offset) {
   /**
    * Set items is a (non-compact) array
@@ -137,7 +149,8 @@ void ScalarSetitem(const size_t size, scalar_t val, AlignedArray* out, std::vect
   /// END SOLUTION
 }
 
-void EwiseAdd(const AlignedArray& a, const AlignedArray& b, AlignedArray* out) {
+template <typename scalar_t>
+void EwiseAdd(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
   /**
    * Set entries in out to be the sum of correspondings entires in a and b.
    */
@@ -146,7 +159,8 @@ void EwiseAdd(const AlignedArray& a, const AlignedArray& b, AlignedArray* out) {
   }
 }
 
-void ScalarAdd(const AlignedArray& a, scalar_t val, AlignedArray* out) {
+template <typename scalar_t>
+void ScalarAdd(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
   /**
    * Set entries in out to be the sum of corresponding entry in a plus the scalar val.
    */
@@ -175,43 +189,122 @@ void ScalarAdd(const AlignedArray& a, scalar_t val, AlignedArray* out) {
  * functions (however you want to do so, as long as the functions match the proper)
  * signatures above.
  */
-#define EWISE_TWO_OP(name, op) \
-void name(const AlignedArray& a, const AlignedArray& b, AlignedArray* out) { \
-  for (size_t i = 0; i < a.size; i++) { \
-    out->ptr[i] = op (a.ptr[i], b.ptr[i]); \
-  } \
+template <typename scalar_t, typename Op>
+void EwiseOp(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b,
+             AlignedArray<scalar_t>* out, Op op) {
+  for (size_t i = 0; i < a.size; i++) {
+    out->ptr[i] = op(a.ptr[i], b.ptr[i]);
+  }
+}
+template <typename T>
+struct Maximum {
+  T operator()(const T& a, const T& b) const { return std::max(a, b); }
+};
+template <typename scalar_t>
+void EwiseMul(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
+  EwiseOp(a, b, out, std::multiplies<scalar_t>{});
 }
 
-EWISE_TWO_OP(EwiseMul, std::multiplies<scalar_t>())
-EWISE_TWO_OP(EwiseDiv, std::divides<scalar_t>())
-EWISE_TWO_OP(EwiseMaximum, std::max)
-EWISE_TWO_OP(EwiseEq, std::equal_to<scalar_t>())
-EWISE_TWO_OP(EwiseGe, std::greater_equal<scalar_t>())
-
-#define EWISE_ONE_OP(name, op) \
-void name(const AlignedArray& a, AlignedArray* out) { \
-  for (size_t i = 0; i < a.size; i++) { \
-    out->ptr[i] = op (a.ptr[i]); \
-  } \
+template <typename scalar_t>
+void EwiseDiv(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
+  EwiseOp(a, b, out, std::divides<scalar_t>{});
 }
-EWISE_ONE_OP(EwiseLog, std::log)
-EWISE_ONE_OP(EwiseExp, std::exp)
-EWISE_ONE_OP(EwiseTanh, std::tanh)
 
-#define SCALAR_OP(name, op) \
-void name(const AlignedArray& a, scalar_t val, AlignedArray* out) { \
-  for (size_t i = 0; i < a.size; i++) { \
-    out->ptr[i] = op(a.ptr[i], val); \
-  } \
+template <typename scalar_t>
+void EwiseMaximum(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
+  EwiseOp(a, b, out, Maximum<scalar_t>{});
 }
-SCALAR_OP(ScalarMul, std::multiplies<scalar_t>())
-SCALAR_OP(ScalarDiv, std::divides<scalar_t>())
-SCALAR_OP(ScalarPower, std::pow)
-SCALAR_OP(ScalarMaximum, std::max)
-SCALAR_OP(ScalarEq, std::equal_to<scalar_t>())
-SCALAR_OP(ScalarGe, std::greater_equal<scalar_t>())
 
-void Matmul(const AlignedArray& a, const AlignedArray& b, AlignedArray* out, uint32_t m, uint32_t n,
+template <typename scalar_t>
+void EwiseEq(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
+  EwiseOp(a, b, out, std::equal_to<scalar_t>{});
+}
+
+template <typename scalar_t>
+void EwiseGe(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out) {
+  EwiseOp(a, b, out, std::greater_equal<scalar_t>{});
+}
+
+
+template <typename scalar_t, typename Op>
+void EwiseUnaryOp(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, Op op) {
+  for (size_t i = 0; i < a.size; i++) {
+    out->ptr[i] = op(a.ptr[i]);
+  }
+}
+template <typename T>
+struct Log {
+  T operator()(const T& x) const { return std::log(x); }
+};
+
+template <typename T>
+struct Exp {
+  T operator()(const T& x) const { return std::exp(x); }
+};
+
+template <typename T>
+struct Tanh {
+  T operator()(const T& x) const { return std::tanh(x); }
+};
+template <typename scalar_t>
+void EwiseLog(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out) {
+  EwiseUnaryOp(a, out, Log<scalar_t>{});
+}
+
+template <typename scalar_t>
+void EwiseExp(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out) {
+  EwiseUnaryOp(a, out, Exp<scalar_t>{});
+}
+
+template <typename scalar_t>
+void EwiseTanh(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out) {
+  EwiseUnaryOp(a, out, Tanh<scalar_t>{});
+}
+
+
+template <typename scalar_t, typename Op>
+void ScalarOp(const AlignedArray<scalar_t>& a, scalar_t val,
+              AlignedArray<scalar_t>* out, Op op) {
+  for (size_t i = 0; i < a.size; i++) {
+    out->ptr[i] = op(a.ptr[i], val);
+  }
+}
+template <typename T>
+struct Power {
+  T operator()(const T& base, const T& exp) const { return std::pow(base, exp); }
+};
+template <typename scalar_t>
+void ScalarMul(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, std::multiplies<scalar_t>{});
+}
+
+template <typename scalar_t>
+void ScalarDiv(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, std::divides<scalar_t>{});
+}
+
+template <typename scalar_t>
+void ScalarPower(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, Power<scalar_t>{});
+}
+
+template <typename scalar_t>
+void ScalarMaximum(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, Maximum<scalar_t>{});
+}
+
+template <typename scalar_t>
+void ScalarEq(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, std::equal_to<scalar_t>{});
+}
+
+template <typename scalar_t>
+void ScalarGe(const AlignedArray<scalar_t>& a, scalar_t val, AlignedArray<scalar_t>* out) {
+  ScalarOp(a, val, out, std::greater_equal<scalar_t>{});
+}
+
+template <typename scalar_t>
+void Matmul(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out, uint32_t m, uint32_t n,
             uint32_t p) {
   /**
    * Multiply two (compact) matrices into an output (also compact) matrix.  For this implementation
@@ -238,43 +331,26 @@ void Matmul(const AlignedArray& a, const AlignedArray& b, AlignedArray* out, uin
   /// END SOLUTION
 }
 
-inline void AlignedDot(const float* __restrict__ a,
-                       const float* __restrict__ b,
-                       float* __restrict__ out) {
+template <typename scalar_t>
+inline void AlignedDot(const scalar_t* __restrict__ a,
+                       const scalar_t* __restrict__ b,
+                       scalar_t* __restrict__ out) {
 
-  /**
-   * Multiply together two TILE x TILE matrices, and _add _the result to out (it is important to add
-   * the result to the existing out, which you should not set to zero beforehand).  We are including
-   * the compiler flags here that enable the compile to properly use vector operators to implement
-   * this function.  Specifically, the __restrict__ keyword indicates to the compile that a, b, and
-   * out don't have any overlapping memory (which is necessary in order for vector operations to be
-   * equivalent to their non-vectorized counterparts (imagine what could happen otherwise if a, b,
-   * and out had overlapping memory).  Similarly the __builtin_assume_aligned keyword tells the
-   * compiler that the input array will be aligned to the appropriate blocks in memory, which also
-   * helps the compiler vectorize the code.
-   *
-   * Args:
-   *   a: compact 2D array of size TILE x TILE
-   *   b: compact 2D array of size TILE x TILE
-   *   out: compact 2D array of size TILE x TILE to write to
-   */
+  a = (const scalar_t*)__builtin_assume_aligned(a, TILE * sizeof(scalar_t));
+  b = (const scalar_t*)__builtin_assume_aligned(b, TILE * sizeof(scalar_t));
+  out = (scalar_t*)__builtin_assume_aligned(out, TILE * sizeof(scalar_t));
 
-  a = (const float*)__builtin_assume_aligned(a, TILE * ELEM_SIZE);
-  b = (const float*)__builtin_assume_aligned(b, TILE * ELEM_SIZE);
-  out = (float*)__builtin_assume_aligned(out, TILE * ELEM_SIZE);
-
-  /// BEGIN SOLUTION
   for (size_t i = 0; i < TILE; i++) {
     for (size_t j = 0; j < TILE; j++) {
       for (size_t k = 0; k < TILE; k++) {
-        out[i*TILE+j] += a[i*TILE+k]*b[k*TILE+j];
+        out[i * TILE + j] += a[i * TILE + k] * b[k * TILE + j];
       }
     }
   }
-  /// END SOLUTION
 }
 
-void MatmulTiled(const AlignedArray& a, const AlignedArray& b, AlignedArray* out, uint32_t m,
+template <typename scalar_t>
+void MatmulTiled(const AlignedArray<scalar_t>& a, const AlignedArray<scalar_t>& b, AlignedArray<scalar_t>* out, uint32_t m,
                  uint32_t n, uint32_t p) {
   /**
    * Matrix multiplication on tiled representations of array.  In this setting, a, b, and out
@@ -313,7 +389,8 @@ void MatmulTiled(const AlignedArray& a, const AlignedArray& b, AlignedArray* out
   /// END SOLUTION
 }
 
-void ReduceMax(const AlignedArray& a, AlignedArray* out, size_t reduce_size) {
+template <typename scalar_t>
+void ReduceMax(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, size_t reduce_size) {
   /**
    * Reduce by taking maximum over `reduce_size` contiguous blocks.
    *
@@ -333,7 +410,8 @@ void ReduceMax(const AlignedArray& a, AlignedArray* out, size_t reduce_size) {
   /// END SOLUTION
 }
 
-void ReduceSum(const AlignedArray& a, AlignedArray* out, size_t reduce_size) {
+template <typename scalar_t>
+void ReduceSum(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, size_t reduce_size) {
   /**
    * Reduce by taking sum over `reduce_size` contiguous blocks.
    *
