@@ -434,6 +434,121 @@ void ReduceSum(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, siz
 }  // namespace cpu
 }  // namespace needle
 
+// PYBIND11_MODULE(ndarray_backend_cpu, m) {
+//   namespace py = pybind11;
+//   using namespace needle;
+//   using namespace cpu;
+
+//   m.attr("__device_name__") = "cpu";
+//   m.attr("__tile_size__") = TILE;
+
+//   py::class_<AlignedArray>(m, "Array")
+//       .def(py::init<size_t>(), py::return_value_policy::take_ownership)
+//       .def("ptr", &AlignedArray::ptr_as_int)
+//       .def_readonly("size", &AlignedArray::size);
+
+//   // return numpy array (with copying for simplicity, otherwise garbage
+//   // collection is a pain)
+//   m.def("to_numpy", [](const AlignedArray& a, std::vector<size_t> shape,
+//                        std::vector<size_t> strides, size_t offset) {
+//     std::vector<size_t> numpy_strides = strides;
+//     std::transform(numpy_strides.begin(), numpy_strides.end(), numpy_strides.begin(),
+//                    [](size_t& c) { return c * ELEM_SIZE; });
+//     return py::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
+//   });
+
+//   // convert from numpy (with copying)
+//   m.def("from_numpy", [](py::array_t<scalar_t> a, AlignedArray* out) {
+//     std::memcpy(out->ptr, a.request().ptr, out->size * ELEM_SIZE);
+//   });
+
+//   m.def("fill", Fill);
+//   m.def("compact", Compact);
+//   m.def("ewise_setitem", EwiseSetitem);
+//   m.def("scalar_setitem", ScalarSetitem);
+//   m.def("ewise_add", EwiseAdd);
+//   m.def("scalar_add", ScalarAdd);
+
+//   m.def("ewise_mul", EwiseMul);
+//   m.def("scalar_mul", ScalarMul);
+//   m.def("ewise_div", EwiseDiv);
+//   m.def("scalar_div", ScalarDiv);
+//   m.def("scalar_power", ScalarPower);
+
+//   m.def("ewise_maximum", EwiseMaximum);
+//   m.def("scalar_maximum", ScalarMaximum);
+//   m.def("ewise_eq", EwiseEq);
+//   m.def("scalar_eq", ScalarEq);
+//   m.def("ewise_ge", EwiseGe);
+//   m.def("scalar_ge", ScalarGe);
+
+//   m.def("ewise_log", EwiseLog);
+//   m.def("ewise_exp", EwiseExp);
+//   m.def("ewise_tanh", EwiseTanh);
+
+//   m.def("matmul", Matmul);
+//   m.def("matmul_tiled", MatmulTiled);
+
+//   m.def("reduce_max", ReduceMax);
+//   m.def("reduce_sum", ReduceSum);
+// }
+
+template <typename scalar_t>
+void register_array_type(py::module& m, const std::string& suffix) {
+  using Array = AlignedArray<scalar_t>;
+  std::string class_name = "Array" + suffix;
+
+  py::class_<Array>(m, class_name.c_str())
+      .def(py::init<size_t>(), py::return_value_policy::take_ownership)
+      .def("ptr", &Array::ptr_as_int)
+      .def_readonly("size", &Array::size);
+
+  // to numpy
+  m.def(("to_numpy" + suffix).c_str(),
+        [](const Array& a, std::vector<size_t> shape,
+           std::vector<size_t> strides, size_t offset) {
+          std::vector<size_t> numpy_strides = strides;
+          std::transform(numpy_strides.begin(), numpy_strides.end(),
+                         numpy_strides.begin(),
+                         [](size_t c) { return c * sizeof(scalar_t); });
+          return py::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
+        });
+
+  // from numpy
+  m.def(("from_numpy" + suffix).c_str(),
+        [](py::array_t<scalar_t> a, Array* out) {
+          std::memcpy(out->ptr, a.request().ptr, out->size * sizeof(scalar_t));
+        });
+
+  // --- Register all ops for this scalar type ---
+  m.def(("fill" + suffix).c_str(), Fill<scalar_t>);
+  m.def(("compact" + suffix).c_str(), Compact<scalar_t>);
+  m.def(("ewise_setitem" + suffix).c_str(), EwiseSetitem<scalar_t>);
+  m.def(("scalar_setitem" + suffix).c_str(), ScalarSetitem<scalar_t>);
+  m.def(("ewise_add" + suffix).c_str(), EwiseAdd<scalar_t>);
+  m.def(("scalar_add" + suffix).c_str(), ScalarAdd<scalar_t>);
+  m.def(("ewise_mul" + suffix).c_str(), EwiseMul<scalar_t>);
+  m.def(("scalar_mul" + suffix).c_str(), ScalarMul<scalar_t>);
+  m.def(("ewise_div" + suffix).c_str(), EwiseDiv<scalar_t>);
+  m.def(("scalar_div" + suffix).c_str(), ScalarDiv<scalar_t>);
+  m.def(("ewise_exp" + suffix).c_str(), EwiseExp<scalar_t>);
+  m.def(("ewise_log" + suffix).c_str(), EwiseLog<scalar_t>);
+  m.def(("ewise_tanh" + suffix).c_str(), EwiseTanh<scalar_t>);
+  m.def(("scalar_power" + suffix).c_str(), ScalarPower<scalar_t>);
+  m.def(("matmul" + suffix).c_str(), Matmul<scalar_t>);
+  m.def(("reduce_sum" + suffix).c_str(), ReduceSum<scalar_t>);
+  // ... etc.
+}
+template <typename scalar_t>
+void register_real_only_ops(py::module& m, const std::string& suffix) {
+  m.def(("ewise_maximum" + suffix).c_str(), EwiseMaximum<scalar_t>);
+  m.def(("scalar_maximum" + suffix).c_str(), ScalarMaximum<scalar_t>);
+  m.def(("ewise_eq" + suffix).c_str(), EwiseEq<scalar_t>);
+  m.def(("ewise_ge" + suffix).c_str(), EwiseGe<scalar_t>);
+  m.def(("scalar_eq" + suffix).c_str(), ScalarEq<scalar_t>);
+  m.def(("scalar_ge" + suffix).c_str(), ScalarGe<scalar_t>);
+  m.def(("reduce_max" + suffix).c_str(), ReduceMax<scalar_t>);
+}
 PYBIND11_MODULE(ndarray_backend_cpu, m) {
   namespace py = pybind11;
   using namespace needle;
@@ -442,53 +557,11 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
   m.attr("__device_name__") = "cpu";
   m.attr("__tile_size__") = TILE;
 
-  py::class_<AlignedArray>(m, "Array")
-      .def(py::init<size_t>(), py::return_value_policy::take_ownership)
-      .def("ptr", &AlignedArray::ptr_as_int)
-      .def_readonly("size", &AlignedArray::size);
+  // Float
+  register_array_type<float>(m, "");
+  register_real_only_ops<float>(m, "");
 
-  // return numpy array (with copying for simplicity, otherwise garbage
-  // collection is a pain)
-  m.def("to_numpy", [](const AlignedArray& a, std::vector<size_t> shape,
-                       std::vector<size_t> strides, size_t offset) {
-    std::vector<size_t> numpy_strides = strides;
-    std::transform(numpy_strides.begin(), numpy_strides.end(), numpy_strides.begin(),
-                   [](size_t& c) { return c * ELEM_SIZE; });
-    return py::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
-  });
-
-  // convert from numpy (with copying)
-  m.def("from_numpy", [](py::array_t<scalar_t> a, AlignedArray* out) {
-    std::memcpy(out->ptr, a.request().ptr, out->size * ELEM_SIZE);
-  });
-
-  m.def("fill", Fill);
-  m.def("compact", Compact);
-  m.def("ewise_setitem", EwiseSetitem);
-  m.def("scalar_setitem", ScalarSetitem);
-  m.def("ewise_add", EwiseAdd);
-  m.def("scalar_add", ScalarAdd);
-
-  m.def("ewise_mul", EwiseMul);
-  m.def("scalar_mul", ScalarMul);
-  m.def("ewise_div", EwiseDiv);
-  m.def("scalar_div", ScalarDiv);
-  m.def("scalar_power", ScalarPower);
-
-  m.def("ewise_maximum", EwiseMaximum);
-  m.def("scalar_maximum", ScalarMaximum);
-  m.def("ewise_eq", EwiseEq);
-  m.def("scalar_eq", ScalarEq);
-  m.def("ewise_ge", EwiseGe);
-  m.def("scalar_ge", ScalarGe);
-
-  m.def("ewise_log", EwiseLog);
-  m.def("ewise_exp", EwiseExp);
-  m.def("ewise_tanh", EwiseTanh);
-
-  m.def("matmul", Matmul);
-  m.def("matmul_tiled", MatmulTiled);
-
-  m.def("reduce_max", ReduceMax);
-  m.def("reduce_sum", ReduceSum);
+  // Complex
+  register_array_type<std::complex<float>>(m, "_complex");
+  // No register_real_only_ops for complex — intentionally omitted
 }
