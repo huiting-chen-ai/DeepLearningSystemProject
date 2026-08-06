@@ -431,8 +431,8 @@ void ReduceSum(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, siz
   /// END SOLUTION
 }
 
-}  // namespace cpu
-}  // namespace needle
+// }  // namespace cpu
+// }  // namespace needle
 
 // PYBIND11_MODULE(ndarray_backend_cpu, m) {
 //   namespace py = pybind11;
@@ -503,7 +503,6 @@ void register_array_type(pybind11::module& m, const std::string& suffix) {
       .def("ptr", &Array::ptr_as_int)
       .def_readonly("size", &Array::size);
 
-  // to numpy
   m.def(("to_numpy" + suffix).c_str(),
         [](const Array& a, std::vector<size_t> shape,
            std::vector<size_t> strides, size_t offset) {
@@ -514,13 +513,11 @@ void register_array_type(pybind11::module& m, const std::string& suffix) {
           return pybind11::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
         });
 
-  // from numpy
   m.def(("from_numpy" + suffix).c_str(),
         [](pybind11::array_t<scalar_t> a, Array* out) {
           std::memcpy(out->ptr, a.request().ptr, out->size * sizeof(scalar_t));
         });
 
-  // --- Register all ops for this scalar type ---
   m.def(("fill" + suffix).c_str(), Fill<scalar_t>);
   m.def(("compact" + suffix).c_str(), Compact<scalar_t>);
   m.def(("ewise_setitem" + suffix).c_str(), EwiseSetitem<scalar_t>);
@@ -537,10 +534,10 @@ void register_array_type(pybind11::module& m, const std::string& suffix) {
   m.def(("scalar_power" + suffix).c_str(), ScalarPower<scalar_t>);
   m.def(("matmul" + suffix).c_str(), Matmul<scalar_t>);
   m.def(("reduce_sum" + suffix).c_str(), ReduceSum<scalar_t>);
-  // ... etc.
 }
+
 template <typename scalar_t>
-void register_real_only_ops(py::module& m, const std::string& suffix) {
+void register_real_only_ops(pybind11::module& m, const std::string& suffix) {
   m.def(("ewise_maximum" + suffix).c_str(), EwiseMaximum<scalar_t>);
   m.def(("scalar_maximum" + suffix).c_str(), ScalarMaximum<scalar_t>);
   m.def(("ewise_eq" + suffix).c_str(), EwiseEq<scalar_t>);
@@ -549,6 +546,10 @@ void register_real_only_ops(py::module& m, const std::string& suffix) {
   m.def(("scalar_ge" + suffix).c_str(), ScalarGe<scalar_t>);
   m.def(("reduce_max" + suffix).c_str(), ReduceMax<scalar_t>);
 }
+
+} // namespace cpu
+} // namespace needle
+
 PYBIND11_MODULE(ndarray_backend_cpu, m) {
   using namespace needle;
   using namespace cpu;
@@ -556,11 +557,8 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
   m.attr("__device_name__") = "cpu";
   m.attr("__tile_size__") = TILE;
 
-  // Float
   register_array_type<float>(m, "");
   register_real_only_ops<float>(m, "");
 
-  // Complex
   register_array_type<std::complex<float>>(m, "_complex");
-  // No register_real_only_ops for complex — intentionally omitted
 }
