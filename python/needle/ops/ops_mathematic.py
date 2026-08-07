@@ -580,6 +580,8 @@ class FFT1d(TensorOp):
         padded_n = next_pow2(orig_n)
         new_inp = array_api.full((padded_n, ), 0, dtype=inp.dtype, device=inp.device)
         new_inp[:orig_n] = inp
+        new_inp = new_inp.numpy().astype(numpy.complex64)
+        new_inp_complex = NDArray(new_inp, device=inp.device)
         result = fft1d_recurse(new_inp)
         return result
     def gradient(self, out_grad, node):
