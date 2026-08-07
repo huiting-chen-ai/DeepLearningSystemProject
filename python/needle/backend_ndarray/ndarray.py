@@ -58,8 +58,8 @@ class BackendDevice:
     def Array(self, size, dtype=np.float32):
         """Create the correct backing array for the given dtype."""
         if np.issubdtype(dtype, np.complexfloating):
-            return self._mod.Array_complex(size)
-        return self._mod.Array(size)
+            return self.mod.Array_complex(size)
+        return self.mod.Array(size)
 
 
 def cuda() -> BackendDevice:
