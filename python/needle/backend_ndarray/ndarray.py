@@ -48,16 +48,16 @@ class BackendDevice:
 
     def empty(self, shape: tuple[int, ...], dtype: str = "float32") -> "NDArray":
         dtype = "float32" if dtype is None else dtype
-        return NDArray.make(shape, device=self)
+        return NDArray.make(shape, device=self, dtype=dtype)
 
     def full(self, shape: tuple[int, ...], fill_value: float, dtype: str = "float32") -> "NDArray":
         dtype = "float32" if dtype is None else dtype
         arr = self.empty(shape, dtype)
         arr.fill(fill_value)
         return arr
-    def Array(self, size, dtype=np.float32):
+    def Array(self, size, dtype):
         """Create the correct backing array for the given dtype."""
-        if np.issubdtype(dtype, np.complexfloating):
+        if dtype=="complex64":
             return self.mod.Array_complex(size)
         print(dtype)
         return self.mod.Array(size)
