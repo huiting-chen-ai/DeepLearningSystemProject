@@ -248,7 +248,7 @@ class NDArray:
         else:
             out = NDArray.make(self.shape, device=self.device)
             self.device.compact(
-                self._handle, out._handle, self.shape, self.strides, self._offset, self._dtype
+                self._handle, out._handle, self.shape, self.strides, self._offset
             )
             return out
 
