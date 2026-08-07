@@ -55,6 +55,11 @@ class BackendDevice:
         arr = self.empty(shape, dtype)
         arr.fill(fill_value)
         return arr
+    def Array(self, size, dtype=np.float32):
+        """Create the correct backing array for the given dtype."""
+        if np.issubdtype(dtype, np.complexfloating):
+            return self._mod.Array_complex(size)
+        return self._mod.Array(size)
 
 
 def cuda() -> BackendDevice:
@@ -103,23 +108,32 @@ class NDArray:
     _offset: int
     _device: BackendDevice
     _handle: Any
+    _dtype: np.dtype
 
-    def __init__(self, other, device=None):
+    def __init__(self, other, device=None, dtype=None):
         """Create by copying another NDArray, or from numpy"""
         if isinstance(other, NDArray):
             # create a copy of existing NDArray
             if device is None:
                 device = other.device
+            if dtype is None:
+                dtype = other.dtype
             self._init(other.to(device) + 0.0)  # this creates a copy
         elif isinstance(other, np.ndarray):
             # create copy from numpy array
             device = device if device is not None else default_device()
-            array = self.make(other.shape, device=device)
+            if dtype is None:
+                # Infer from the numpy array, default to float32
+                if np.issubdtype(other.dtype, np.complexfloating):
+                    dtype = np.complex64
+                else:
+                    dtype = np.float32
+            array = self.make(other.shape, device=device, dtype=dtype)
             array.device.from_numpy(np.ascontiguousarray(other), array._handle)
             self._init(array)
         else:
             # see if we can create a numpy array from input
-            array = NDArray(np.array(other), device=device)
+            array = NDArray(np.array(other), device=device, dtype=dtype)
             self._init(array)
 
     def _init(self, other: "NDArray") -> None:
@@ -128,6 +142,7 @@ class NDArray:
         self._offset = other._offset
         self._device = other._device
         self._handle = other._handle
+        self._dtype = other._dtype
 
     @staticmethod
     def compact_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
@@ -146,6 +161,7 @@ class NDArray:
         device: BackendDevice | None = None,
         handle: Any = None,
         offset: int = 0,
+        dtype: np.dtype = np.float32,
     ) -> "NDArray":
         """Create a new NDArray with the given properties.  This will allocation the
         memory if handle=None, otherwise it will use the handle of an existing
@@ -155,6 +171,7 @@ class NDArray:
         array._strides = NDArray.compact_strides(shape) if strides is None else strides
         array._offset = offset
         array._device = device if device is not None else default_device()
+        array._dtype = dtype
         if handle is None:
             array._handle = array.device.Array(prod(shape))
         else:
@@ -174,10 +191,14 @@ class NDArray:
     def device(self) -> BackendDevice:
         return self._device
 
+    # @property
+    # def dtype(self) -> str:
+    #     # only support float32 for now
+    #     return "float32"
     @property
-    def dtype(self) -> str:
-        # only support float32 for now
-        return "float32"
+    def dtype(self) -> np.dtype:
+        return self._dtype
+
 
     @property
     def ndim(self) -> int:
@@ -227,7 +248,7 @@ class NDArray:
         else:
             out = NDArray.make(self.shape, device=self.device)
             self.device.compact(
-                self._handle, out._handle, self.shape, self.strides, self._offset
+                self._handle, out._handle, self.shape, self.strides, self._offset, self._dtype
             )
             return out
 
@@ -235,7 +256,7 @@ class NDArray:
         """Restride the matrix without copying memory."""
         assert len(shape) == len(strides)
         return NDArray.make(
-            shape, strides=strides, device=self.device, handle=self._handle, offset=self._offset
+            shape, strides=strides, device=self.device, handle=self._handle, offset=self._offset, dtype=self._dtype
         )
 
     @property
@@ -272,7 +293,7 @@ class NDArray:
             raise ValueError
 
         new_strides = tuple(new_strides[::-1])
-        return NDArray.make(new_shape, new_strides, self._device, self._handle, self._offset)
+        return NDArray.make(new_shape, new_strides, self._device, self._handle, self._offset, self._dtype)
         ### END YOUR SOLUTION
 
     def permute(self, new_axes: tuple[int, ...]) -> "NDArray":
@@ -304,7 +325,7 @@ class NDArray:
             new_strides.append(self._strides[i])
         new_shape = tuple(new_shape)
         new_strides = tuple(new_strides)
-        return NDArray.make(new_shape, new_strides, self._device, self._handle, self._offset)
+        return NDArray.make(new_shape, new_strides, self._device, self._handle, self._offset, self._dtype)
         ### END YOUR SOLUTION
 
     def broadcast_to(self, new_shape: tuple[int, ...]) -> "NDArray":
@@ -336,7 +357,7 @@ class NDArray:
                 new_stride.append(0)
             else:
                 raise AssertionError
-        return NDArray.make(new_shape, tuple(new_stride), self._device, self._handle, self._offset)
+        return NDArray.make(new_shape, tuple(new_stride), self._device, self._handle, self._offset, self._dtype)
         ### END YOUR SOLUTION]
 
     ### Get and set elements
@@ -413,7 +434,7 @@ class NDArray:
             new_shape.append((stop-start+step-1)//step)
             new_stride.append(self._strides[i]*step)
             new_offset += self._strides[i]*start
-        return NDArray.make(tuple(new_shape), tuple(new_stride), self._device, self._handle, new_offset)
+        return NDArray.make(tuple(new_shape), tuple(new_stride), self._device, self._handle, new_offset, self._dtype)
         ### END YOUR SOLUTION
 
     def __setitem__(self, idxs: int | slice | tuple[int | slice, ...], other: Union["NDArray", float]) -> None:
@@ -487,7 +508,7 @@ class NDArray:
         return self * (-1)
 
     def __pow__(self, other: float) -> "NDArray":
-        out = NDArray.make(self.shape, device=self.device)
+        out = NDArray.make(self.shape, device=self.device, dtype=self._dtype)
         self.device.scalar_power(self.compact()._handle, other, out._handle)
         return out
 
@@ -594,7 +615,7 @@ class NDArray:
         if axis is None:
             view = self.compact().reshape((1,) * (self.ndim - 1) + (prod(self.shape),))
             #out = NDArray.make((1,) * self.ndim, device=self.device)
-            out = NDArray.make((1,), device=self.device)
+            out = NDArray.make((1,), device=self.device, dtype=self._dtype)
 
         else:
             if isinstance(axis, (tuple, list)):
@@ -609,6 +630,7 @@ class NDArray:
                 if keepdims else
                 tuple([s for i, s in enumerate(self.shape) if i != axis]),
                 device=self.device,
+                dtype=self._dtype
             )
         return view, out
 
@@ -639,7 +661,7 @@ class NDArray:
         for i, s in enumerate(self._strides):
             if i in axes:
                 new_offset += s*(self._shape[i]-1)
-        out = NDArray.make(self._shape, new_strides, self._device, self._handle, new_offset).compact()
+        out = NDArray.make(self._shape, new_strides, self._device, self._handle, new_offset, self._dtype).compact()
         return out
         ### END YOUR SOLUTION
 
@@ -660,8 +682,8 @@ class NDArray:
 def array(a: Any, dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:
     """Convenience methods to match numpy a bit more closely."""
     dtype = "float32" if dtype is None else dtype
-    assert dtype == "float32"
-    return NDArray(a, device=device)
+    # assert dtype == "float32"
+    return NDArray(a, device=device, dtype=dtype)
 
 
 def empty(shape: tuple[int, ...], dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:

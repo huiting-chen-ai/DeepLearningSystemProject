@@ -496,14 +496,15 @@ void ReduceSum(const AlignedArray<scalar_t>& a, AlignedArray<scalar_t>* out, siz
 template <typename scalar_t>
 void register_array_type(pybind11::module& m, const std::string& suffix) {
   using Array = AlignedArray<scalar_t>;
-  std::string class_name = "Array" + suffix;
 
-  pybind11::class_<Array>(m, class_name.c_str())
+  // Class still needs a unique name
+  pybind11::class_<Array>(m, ("Array" + suffix).c_str())
       .def(pybind11::init<size_t>(), pybind11::return_value_policy::take_ownership)
       .def("ptr", &Array::ptr_as_int)
       .def_readonly("size", &Array::size);
 
-  m.def(("to_numpy" + suffix).c_str(),
+  // Functions use the SAME name — pybind11 overload resolution picks the right one
+  m.def("to_numpy",
         [](const Array& a, std::vector<size_t> shape,
            std::vector<size_t> strides, size_t offset) {
           std::vector<size_t> numpy_strides = strides;
@@ -513,52 +514,54 @@ void register_array_type(pybind11::module& m, const std::string& suffix) {
           return pybind11::array_t<scalar_t>(shape, numpy_strides, a.ptr + offset);
         });
 
-  m.def(("from_numpy" + suffix).c_str(),
+  m.def("from_numpy",
         [](pybind11::array_t<scalar_t> a, Array* out) {
           std::memcpy(out->ptr, a.request().ptr, out->size * sizeof(scalar_t));
         });
 
-  m.def(("fill" + suffix).c_str(), Fill<scalar_t>);
-  m.def(("compact" + suffix).c_str(), Compact<scalar_t>);
-  m.def(("ewise_setitem" + suffix).c_str(), EwiseSetitem<scalar_t>);
-  m.def(("scalar_setitem" + suffix).c_str(), ScalarSetitem<scalar_t>);
-  m.def(("ewise_add" + suffix).c_str(), EwiseAdd<scalar_t>);
-  m.def(("scalar_add" + suffix).c_str(), ScalarAdd<scalar_t>);
-  m.def(("ewise_mul" + suffix).c_str(), EwiseMul<scalar_t>);
-  m.def(("scalar_mul" + suffix).c_str(), ScalarMul<scalar_t>);
-  m.def(("ewise_div" + suffix).c_str(), EwiseDiv<scalar_t>);
-  m.def(("scalar_div" + suffix).c_str(), ScalarDiv<scalar_t>);
-  m.def(("ewise_exp" + suffix).c_str(), EwiseExp<scalar_t>);
-  m.def(("ewise_log" + suffix).c_str(), EwiseLog<scalar_t>);
-  m.def(("ewise_tanh" + suffix).c_str(), EwiseTanh<scalar_t>);
-  m.def(("scalar_power" + suffix).c_str(), ScalarPower<scalar_t>);
-  m.def(("matmul" + suffix).c_str(), Matmul<scalar_t>);
-  m.def(("reduce_sum" + suffix).c_str(), ReduceSum<scalar_t>);
+  m.def("fill",             Fill<scalar_t>);
+  m.def("compact",          Compact<scalar_t>);
+  m.def("ewise_setitem",    EwiseSetitem<scalar_t>);
+  m.def("scalar_setitem",   ScalarSetitem<scalar_t>);
+  m.def("ewise_add",        EwiseAdd<scalar_t>);
+  m.def("scalar_add",       ScalarAdd<scalar_t>);
+  m.def("ewise_mul",        EwiseMul<scalar_t>);
+  m.def("scalar_mul",       ScalarMul<scalar_t>);
+  m.def("ewise_div",        EwiseDiv<scalar_t>);
+  m.def("scalar_div",       ScalarDiv<scalar_t>);
+  m.def("ewise_exp",        EwiseExp<scalar_t>);
+  m.def("ewise_log",        EwiseLog<scalar_t>);
+  m.def("ewise_tanh",       EwiseTanh<scalar_t>);
+  m.def("scalar_power",     ScalarPower<scalar_t>);
+  m.def("matmul",           Matmul<scalar_t>);
+  m.def("reduce_sum",       ReduceSum<scalar_t>);
 }
 
 template <typename scalar_t>
-void register_real_only_ops(pybind11::module& m, const std::string& suffix) {
-  m.def(("ewise_maximum" + suffix).c_str(), EwiseMaximum<scalar_t>);
-  m.def(("scalar_maximum" + suffix).c_str(), ScalarMaximum<scalar_t>);
-  m.def(("ewise_eq" + suffix).c_str(), EwiseEq<scalar_t>);
-  m.def(("ewise_ge" + suffix).c_str(), EwiseGe<scalar_t>);
-  m.def(("scalar_eq" + suffix).c_str(), ScalarEq<scalar_t>);
-  m.def(("scalar_ge" + suffix).c_str(), ScalarGe<scalar_t>);
-  m.def(("reduce_max" + suffix).c_str(), ReduceMax<scalar_t>);
+void register_real_only_ops(pybind11::module& m) {
+  m.def("ewise_maximum",    EwiseMaximum<scalar_t>);
+  m.def("scalar_maximum",   ScalarMaximum<scalar_t>);
+  m.def("ewise_eq",         EwiseEq<scalar_t>);
+  m.def("ewise_ge",         EwiseGe<scalar_t>);
+  m.def("scalar_eq",        ScalarEq<scalar_t>);
+  m.def("scalar_ge",        ScalarGe<scalar_t>);
+  m.def("reduce_max",       ReduceMax<scalar_t>);
 }
 
 } // namespace cpu
 } // namespace needle
 
 PYBIND11_MODULE(ndarray_backend_cpu, m) {
-  using namespace needle;
-  using namespace cpu;
+  namespace py = pybind11;
+  using namespace needle::cpu;
 
   m.attr("__device_name__") = "cpu";
   m.attr("__tile_size__") = TILE;
 
+  // float overloads registered first (tried first by pybind11)
   register_array_type<float>(m, "");
-  register_real_only_ops<float>(m, "");
+  register_real_only_ops<float>(m);
 
+  // complex overloads registered second (tried if float doesn't match)
   register_array_type<std::complex<float>>(m, "_complex");
 }
