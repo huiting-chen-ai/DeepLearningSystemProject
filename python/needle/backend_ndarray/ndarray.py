@@ -55,7 +55,7 @@ class BackendDevice:
         arr = self.empty(shape, dtype)
         arr.fill(fill_value)
         return arr
-    def Array(self, size, dtype):
+    def Array(self, size, dtype: str = "float32"):
         """Create the correct backing array for the given dtype."""
         if dtype=="complex64":
             return self.mod.Array_complex(size)
