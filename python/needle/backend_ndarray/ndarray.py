@@ -59,7 +59,6 @@ class BackendDevice:
         """Create the correct backing array for the given dtype."""
         if dtype=="complex64":
             return self.mod.Array_complex(size)
-        print(dtype)
         return self.mod.Array(size)
 
 

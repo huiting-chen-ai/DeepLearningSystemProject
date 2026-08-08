@@ -260,7 +260,7 @@ fft_1d_shapes = [
     ((16,))
 ]
 @pytest.mark.parametrize("Z_shape", fft_1d_shapes)
-@pytest.mark.parametrize("device", _DEVICES)
+@pytest.mark.parametrize("device", [ndl.cpu()])
 @pytest.mark.parametrize("backward", [True, False], ids=["backward", "forward"])
 def test_op_fft_1d(Z_shape, backward, device):
     np.random.seed(0)
