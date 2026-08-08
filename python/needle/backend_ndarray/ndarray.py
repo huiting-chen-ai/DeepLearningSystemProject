@@ -174,7 +174,7 @@ class NDArray:
         array._device = device if device is not None else default_device()
         array._dtype = dtype
         if handle is None:
-            array._handle = array.device.Array(prod(shape))
+            array._handle = array.device.Array(prod(shape), dtype=dtype)
         else:
             array._handle = handle
         return array
