@@ -674,7 +674,7 @@ class NDArray:
         """
         ### BEGIN YOUR SOLUTION
         new_shape = tuple(s+axes[i][0]+axes[i][1] for i, s in enumerate(self._shape))
-        out = self.device.full(new_shape, fill_value=0)
+        out = self.device.full(new_shape, fill_value=0, device=self._device, dtype=self._dtype)
         slices = tuple(slice(axes[i][0], axes[i][0]+s) for i, s in enumerate(self._shape))
         out[slices] = self
         return out
