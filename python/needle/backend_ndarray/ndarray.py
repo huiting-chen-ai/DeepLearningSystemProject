@@ -51,9 +51,9 @@ class BackendDevice:
         device = self if device is None else device
         return NDArray.make(shape, device=device, dtype=dtype)
 
-    def full(self, shape: tuple[int, ...], fill_value: float, dtype: str = "float32") -> "NDArray":
+    def full(self, shape: tuple[int, ...], fill_value: float, dtype: str = "float32", device) -> "NDArray":
         dtype = "float32" if dtype is None else dtype
-        arr = self.empty(shape, dtype)
+        arr = self.empty(shape, device=device, dtype=dtype)
         arr.fill(fill_value)
         return arr
     def Array(self, size, dtype: str = "float32"):
@@ -694,7 +694,7 @@ def empty(shape: tuple[int, ...], dtype: str = "float32", device: BackendDevice 
 
 def full(shape: tuple[int, ...], fill_value: float, dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:
     device = device if device is not None else default_device()
-    return device.full(shape, fill_value, dtype)
+    return device.full(shape, fill_value, dtype=dtype, device=device)
 
 
 def broadcast_to(array: NDArray, new_shape: tuple[int, ...]) -> NDArray:
