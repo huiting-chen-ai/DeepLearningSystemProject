@@ -46,9 +46,10 @@ class BackendDevice:
     def one_hot(self, n: int, i: int, dtype: str = "float32") -> "NDArray":
         return NDArray(np.eye(n, dtype=dtype)[i], device=self)
 
-    def empty(self, shape: tuple[int, ...], dtype: str = "float32") -> "NDArray":
+    def empty(self, shape: tuple[int, ...], device, dtype: str = "float32") -> "NDArray":
         dtype = "float32" if dtype is None else dtype
-        return NDArray.make(shape, device=self, dtype=dtype)
+        device = self if device is None else device
+        return NDArray.make(shape, device=device, dtype=dtype)
 
     def full(self, shape: tuple[int, ...], fill_value: float, dtype: str = "float32") -> "NDArray":
         dtype = "float32" if dtype is None else dtype
@@ -246,7 +247,7 @@ class NDArray:
         if self.is_compact():
             return self
         else:
-            out = NDArray.make(self.shape, device=self.device)
+            out = NDArray.make(self.shape, device=self.device,dtype=self._dtype)
             self.device.compact(
                 self._handle, out._handle, self.shape, self.strides, self._offset
             )
