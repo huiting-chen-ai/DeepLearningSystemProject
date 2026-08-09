@@ -689,7 +689,7 @@ def array(a: Any, dtype: str = "float32", device: BackendDevice | None = None) -
 
 def empty(shape: tuple[int, ...], dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:
     device = device if device is not None else default_device()
-    return device.empty(shape, dtype)
+    return device.empty(shape, device=device, dtype=dtype)
 
 
 def full(shape: tuple[int, ...], fill_value: float, dtype: str = "float32", device: BackendDevice | None = None) -> NDArray:
