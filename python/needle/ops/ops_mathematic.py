@@ -608,8 +608,7 @@ def fft2d_recurse(inp2d):
     print("row_fft:", type(row_fft._handle))
     for r in range(H):
         inp1d = array_api.reshape(inp2d[r, :].compact(), (W,))
-        rr = fft1d_recurse(inp1d)
-        row_fft[r, :] = rr
+        row_fft[r, :] = fft1d_recurse(inp1d)
     out = array_api.empty((H, W), dtype="complex64", device=inp2d.device)
     for c in range(W):
         inpcol = array_api.reshape(inp2d[:, c].compact(), (H,))
@@ -640,7 +639,7 @@ class FFT2d(TensorOp):
         H = next_pow2(H0)
         W = next_pow2(W0)
         padded = array_api.full((B, H, W), 0.0, dtype=inp.dtype, device=inp.device)
-        result = array_api.full((B, H0, W0), 0.0, dtype="complex32", device=inp.device)
+        result = array_api.full((B, H0, W0), 0.0, dtype="complex64", device=inp.device)
         # for b in range(B):
         #     for r in range(H0):
         #         for c in range(W0):
