@@ -561,15 +561,17 @@ def fft1d_recurse(inp):
 def ifft1d_recurse(inp):
     n = inp.shape[0]
     if n == 1:
-        return inp
+        out = array_api.empty((1,), dtype="complex64", device=inp.device,)
+        out[0] = complex(inp.numpy()[0])
+        return out
     w = numpy.exp(2j*math.pi/n)
     xe = inp[0:n:2]
     xo = inp[1:n:2]
-    ye = ifft1d_recurse(xe)
-    yo = ifft1d_recurse(xo)
+    ye = ifft1d_recurse(xe).numpy()
+    yo = ifft1d_recurse(xo).numpy()
     result = array_api.empty((n,), dtype="complex64", device=inp.device)
     for k in range(n // 2):
-        tw = (w**k)*yo.numpy()[k]
+        tw = (w**k)*yo[k]
         result[k] = ye[k] + tw
         result[k + n // 2] = ye[k] - tw
     return result
@@ -585,15 +587,12 @@ class FFT1d(TensorOp):
         result = fft1d_recurse(new_inp_complex)
         return result
     def gradient(self, out_grad, node):
-        m = len(out_grad)
+        m = out_grad.shape[0]
         x_padded = ifft1d_recurse(out_grad)
-        inv_m = 1.0 / m
-        for i in range(m):
-            x_padded[i] = x_padded[i] * inv_m
+        x_padded = x_padded/m
         orig = len(node.inputs[0])
-        grad_x = array_api.full(orig, 0, dtype=complex, device=out_grad.device)
-        for i in range(orig):
-            grad_x[i] = x_padded[i]
+        grad_x = array_api.full(orig, 0, device=out_grad.device, dtype="complex64")
+        grad_x[:orig] = x_padded
         return grad_x
 
 
@@ -617,18 +616,14 @@ def fft2d_recurse(inp2d):
 def ifft2d_recurse(inp2d):
     _, H, W = inp2d.shape
     inp2d = array_api.reshape(inp2d.compact(), (H, W))
-    row_ifft = array_api.empty((H, W), dtype="complex32", device=inp2d.device)
+    row_ifft = array_api.empty((H, W), device=inp2d.device, dtype="complex64")
     for r in range(H):
         inp1d = array_api.reshape(inp2d[r, :].compact(), (W,))
         row_ifft[r, :] = ifft1d_recurse(inp1d)
-    out = array_api.empty((H, W), dtype=complex, device=inp2d.device)
-    col_buffer = array_api.empty((H,), dtype=complex, device=inp2d.device)
+    out = array_api.empty((H, W), dtype="complex64", device=inp2d.device)
     for c in range(W):
-        for r in range(H):
-            col_buffer[r] = row_ifft[r, c]
-        col_ifft = ifft1d_recurse(col_buffer)
-        for r in range(H):
-            out[r, c] = col_ifft[r]
+        inpcol = array_api.reshape(row_ifft[:, c].compact(), (H,))
+        out[:, c] = ifft1d_recurse(inpcol)
     return out
 
 class FFT2d(TensorOp):
@@ -638,12 +633,7 @@ class FFT2d(TensorOp):
         H = next_pow2(H0)
         W = next_pow2(W0)
         padded = array_api.full((B, H, W), 0.0, dtype=inp.dtype, device=inp.device)
-        result = array_api.full((B, H0, W0), 0.0, dtype="complex64", device=inp.device)
-        # for b in range(B):
-        #     for r in range(H0):
-        #         for c in range(W0):
-        #             padded[b, r, c] = inp[b, r, c]
-        #     result[b, :H0, :W0] = fft2d_recurse(padded[b, :, :])[:H0, :W0]    
+        result = array_api.full((B, H0, W0), 0.0, dtype="complex64", device=inp.device) 
         padded[:B, :H0, :W0] = inp
         for b in range(B):
             result[b, :H0, :W0] = fft2d_recurse(padded[b, :, :])[:H0, :W0]
@@ -674,14 +664,8 @@ class IFFT2d(TensorOp):
         B, H0, W0 = inp.shape
         H = next_pow2(H0)
         W = next_pow2(W0)
-        padded = array_api.full((B, H, W), 0.0, dtype="complex32", device=inp.device)
-        result = array_api.full((B, H0, W0), 0.0, dtype="complex32", device=inp.device)
-        # for b in range(B):
-        #     for r in range(H0):
-        #         for c in range(W0):
-        #             padded[b, r, c] = inp[b, r, c]
-        #     result[b] = ifft2d_recurse(padded[b])[:H0, :W0]  
-
+        padded = array_api.full((B, H, W), 0.0, dtype="complex64", device=inp.device)
+        result = array_api.full((B, H0, W0), 0.0, dtype="complex64", device=inp.device)
         padded[:B, :H0, :W0] = inp
         for b in range(B):
             result[b, :H0, :W0] = ifft2d_recurse(padded[b, :, :])[:H0, :W0]

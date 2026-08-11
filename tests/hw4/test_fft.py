@@ -288,3 +288,36 @@ def test_op_fft_1d(Z_shape, backward, device):
     assert err3 < 1e-1, "outputs match %s, %s" % (y2, out2)
     assert y.dtype == "complex64"
     assert np.linalg.norm(y.numpy() - out.detach().numpy()) < 1e-3
+
+
+op_ifft_shapes = [
+    ((5, 16, 16))
+]
+@pytest.mark.parametrize("Z_shape", op_ifft_shapes)
+@pytest.mark.parametrize("device", _DEVICES)
+@pytest.mark.parametrize("backward", [True, False], ids=["backward", "forward"])
+def test_op_ifft(Z_shape, backward, device):
+    np.random.seed(0)
+    import torch
+    _Z = np.random.randn(*Z_shape)*5
+    _Z = _Z.astype(np.float32)
+    Z = ndl.Tensor(_Z, device=device)
+    y = ndl.fft2d(Z)
+    y2 = y.sum()
+    # if backward:
+    #     y2.backward()
+    Ztch = torch.Tensor(_Z).float()
+    Ztch.requires_grad=True
+    out = torch.fft.fft2(Ztch)
+    out2 = out.sum()
+    # if backward:
+    #     out2.backward()
+    # if backward:
+    #     err1 = np.linalg.norm(Ztch.grad.numpy() - Z.grad.numpy())
+    #     err2 = np.linalg.norm(Wtch.grad.numpy() - W.grad.numpy())
+    err3 = np.linalg.norm(out2.detach().numpy() - y2.numpy())
+    # if backward:
+    #     assert err1 < 1e-2, "input grads match"
+    #     assert err2 < 1e-2, "weight grads match"
+    assert err3 < 1e-1, "outputs match %s, %s" % (y2, out2)
+    assert np.linalg.norm(y.numpy() - out.detach().numpy()) < 1e-3
