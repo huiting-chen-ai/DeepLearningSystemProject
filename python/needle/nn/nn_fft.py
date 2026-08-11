@@ -79,7 +79,7 @@ class FFTConv2d(Module):
         # FFT of kernels across spatial dims (per in->out pair)
         K_pad = ops.reshape(K_pad, (self.in_channels*self.out_channels, conv_H, conv_W))
         K_fft = ops.fft2d(K_pad)   # shape (in_ch, out_ch, fft_H, fft_W)
-        K_fft = ops.reshape(K_pad, (self.in_channels, self.out_channels, conv_H, conv_W))
+        K_fft = ops.reshape(K_fft, (self.in_channels, self.out_channels, conv_H, conv_W))
 
         # Multiply in frequency domain and sum over in_channels:
         # For each sample n and out channel o:
