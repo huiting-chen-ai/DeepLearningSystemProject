@@ -472,7 +472,7 @@ class NDArray:
         """Run either an elementwise or scalar version of a function,
         depending on whether "other" is an NDArray or scalar
         """
-        out = NDArray.make(self.shape, device=self.device)
+        out = NDArray.make(self.shape, device=self.device, dtype=self._dtype)
         if isinstance(other, NDArray):
             assert self.shape == other.shape, "operation needs two equal-sized arrays"
             ewise_func(self.compact()._handle, other.compact()._handle, out._handle)
