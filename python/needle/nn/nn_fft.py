@@ -100,7 +100,7 @@ class FFTConv2d(Module):
         # Crop to convolution spatial size conv_H x conv_W (top-left)
         # y_cropped = y_padded[..., :conv_H, :conv_W]   # shape (N, out_ch, conv_H, conv_W)
         y_cropped = ops.crop(y_padded, (conv_H, conv_W))
-
+        y_cropped = ops.real(y_cropped)
 
         # apply stride by subsampling
         if self.stride > 1:
@@ -113,8 +113,8 @@ class FFTConv2d(Module):
             y_cropped = y_cropped + b
 
         # final output: ensure real dtype if inputs/weights are real (drop tiny imag part)
-        out = ops.real(y_cropped)
+        # out = ops.real(y_cropped)
         # return in NCHW: it already is (N, out_ch, H_out, W_out)
-        return out
+        return y_cropped
 
     
