@@ -302,13 +302,15 @@ def test_op_ifft(Z_shape, backward, device):
     _Z = np.random.randn(*Z_shape)*5
     _Z = _Z.astype(np.float32)
     Z = ndl.Tensor(_Z, device=device)
-    y = ndl.fft2d(Z)
+    Z_fft = ndl.fft2d(Z)
+    y = ndl.ifft2d(y)
     y2 = y.sum()
     # if backward:
     #     y2.backward()
     Ztch = torch.Tensor(_Z).float()
     Ztch.requires_grad=True
-    out = torch.fft.fft2(Ztch)
+    out_fft = torch.fft.fft2(Ztch)
+    out = torch.fft.ifft2(out_fft)
     out2 = out.sum()
     # if backward:
     #     out2.backward()
