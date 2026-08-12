@@ -624,6 +624,7 @@ def ifft2d_recurse(inp2d):
     for c in range(W):
         inpcol = array_api.reshape(row_ifft[:, c].compact(), (H,))
         out[:, c] = ifft1d_recurse(inpcol)
+    out = out/(H*W)
     return out
 
 class FFT2d(TensorOp):
