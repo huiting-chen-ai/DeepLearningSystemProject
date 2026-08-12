@@ -303,7 +303,7 @@ def test_op_ifft(Z_shape, backward, device):
     _Z = _Z.astype(np.float32)
     Z = ndl.Tensor(_Z, device=device)
     Z_fft = ndl.fft2d(Z)
-    y = ndl.ifft2d(y)
+    y = ndl.ifft2d(Z_fft)
     y2 = y.sum()
     # if backward:
     #     y2.backward()
