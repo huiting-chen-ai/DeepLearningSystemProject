@@ -47,7 +47,7 @@ class FFTConv2d(Module):
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
         I_fft = ops.fft2d(in_padded)
-        I_fft = ops.reshape(I_fft, (N, C, conv_H, conv_W))
+        I_fft = ops.reshape(I_fft, (N, C, I_fft.shape[1], I_fft.shape[2]))
 
         # Prepare kernel: shape (kh, kw, in_ch, out_ch) -> we need (in_ch, out_ch, fft_H, fft_W)
         kh = kw = self.kernel_size
@@ -61,16 +61,16 @@ class FFTConv2d(Module):
         # FFT of kernels across spatial dims (per in->out pair)
         K_pad = ops.reshape(K_pad, (self.in_channels*self.out_channels, conv_H, conv_W))
         K_fft = ops.fft2d(K_pad)   # shape (in_ch, out_ch, fft_H, fft_W)
-        K_fft = ops.reshape(K_fft, (self.in_channels, self.out_channels, conv_H, conv_W))
+        K_fft = ops.reshape(K_fft, (self.in_channels, self.out_channels, K_fft.shape[1], K_fft.shape[2]))
 
         # Multiply in frequency domain and sum over in_channels:
-        I_fft_b = ops.broadcast_to(ops.reshape(I_fft, (N, self.in_channels, 1, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
-        K_fft_b = ops.broadcast_to(ops.reshape(K_fft, (1, self.in_channels, self.out_channels, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
+        I_fft_b = ops.broadcast_to(ops.reshape(I_fft, (N, self.in_channels, 1, I_fft.shape[2], I_fft.shape[3])), (N, self.in_channels, self.out_channels, I_fft.shape[2], I_fft.shape[3]))
+        K_fft_b = ops.broadcast_to(ops.reshape(K_fft, (1, self.in_channels, self.out_channels, K_fft.shape[2], K_fft.shape[3])), (N, self.in_channels, self.out_channels, K_fft.shape[2], K_fft.shape[3]))
         Y_fft = ops.summation(I_fft_b * K_fft_b, axes=1)
 
         # inverse FFT to spatial domain
-        y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, conv_H, conv_W)))
-        y_padded = ops.reshape(y_padded, (N, self.out_channels, conv_H, conv_W))
+        y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, Y_fft.shape[2], Y_fft.shape[3])))
+        y_padded = ops.reshape(y_padded, (N, self.out_channels, y_padded[1], y_padded[2]))
 
         y_cropped = ops.crop(y_padded, (kh-1, H, kh-1, W))
         y_cropped = ops.real(y_cropped)
