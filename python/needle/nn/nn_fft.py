@@ -40,9 +40,6 @@ class FFTConv2d(Module):
         N, C, H, W = x.shape
         assert C == self.in_channels
 
-        out_H = math.ceil(H / self.stride)
-        out_W = math.ceil(W / self.stride)
-
         conv_H = H + self.kernel_size - 1
         conv_W = W + self.kernel_size - 1
 
