@@ -10,7 +10,7 @@ import math
 from needle.backend_ndarray import ndarray
 
 class FFTConv2d(Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, bias=True, device=None, dtype="float32"):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, bias=False, device=None, dtype="float32"):
         super().__init__()
         if isinstance(kernel_size, tuple):
             kernel_size = kernel_size[0]
@@ -72,9 +72,8 @@ class FFTConv2d(Module):
         # easiest: flip kernel spatially before placing so that multiplication corresponds to conv.
         K = ops.transpose(K, (0, 2))
         K = ops.transpose(K, (1, 3))
-        K_flipped = ops.flip(K, (2, 3))  # -> (in_ch, out_ch, kh, kw) flipped
-        # K_pad[..., :kh, :kw] = K_flipped.astype("complex32")
-        K_pad = ops.pad(K_flipped, (conv_H-kh, conv_W-kw))
+        # K_flipped = ops.flip(K, (2, 3))
+        K_pad = ops.pad(K, (conv_H-kh, conv_W-kw))
 
         # FFT of kernels across spatial dims (per in->out pair)
         K_pad = ops.reshape(K_pad, (self.in_channels*self.out_channels, conv_H, conv_W))
