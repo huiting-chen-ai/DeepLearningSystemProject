@@ -43,7 +43,7 @@ class FFTConv2d(Module):
         conv_H = H + self.kernel_size - 1
         conv_W = W + self.kernel_size - 1
 
-        in_padded = ops.pad(x, (conv_H-H, conv_W-W))
+        in_padded = ops.pad(x, (conv_H-H, conv_W-W)) #pad to N, C, conv_H, conv_W
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
         I_fft = ops.fft2d(in_padded)

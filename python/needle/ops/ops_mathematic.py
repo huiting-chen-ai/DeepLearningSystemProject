@@ -634,10 +634,10 @@ class FFT2d(TensorOp):
         H = next_pow2(H0)
         W = next_pow2(W0)
         padded = array_api.full((B, H, W), 0.0, dtype=inp.dtype, device=inp.device)
-        result = array_api.full((B, H0, W0), 0.0, dtype="complex64", device=inp.device) 
+        result = array_api.full((B, H, W), 0.0, dtype="complex64", device=inp.device) 
         padded[:B, :H0, :W0] = inp
         for b in range(B):
-            result[b, :H0, :W0] = fft2d_recurse(padded[b, :, :])[:H0, :W0]
+            result[b, :H, :W] = fft2d_recurse(padded[b, :, :])
         return result
 
     def gradient(self, out_grad, node):
