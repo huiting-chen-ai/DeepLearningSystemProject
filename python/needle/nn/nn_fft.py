@@ -40,21 +40,12 @@ class FFTConv2d(Module):
         N, C, H, W = x.shape
         assert C == self.in_channels
 
-        # Compute output spatial size for 'same' padding (ceil for stride>1)
         out_H = math.ceil(H / self.stride)
         out_W = math.ceil(W / self.stride)
 
         conv_H = H + self.kernel_size - 1
         conv_W = W + self.kernel_size - 1
 
-        # in_padded = ndarray.full((N, C, conv_H, conv_W), 0.0, dtype="complex32", device=x.device)
-        # in_padded[:, :, :H, :W] = x.cached_data
-        # # for n in range(N):
-        # #     for c in range(C):
-        # #         for h in range(H):
-        # #             for w in range(W):
-        # #                 in_padded[n, c, h, w] = x[n, c, h, w].astype("complex32")
-        # in_padded = Tensor(in_padded, device=x.device, dtype=)
         in_padded = ops.pad(x, (conv_H-H, conv_W-W))
         in_padded = ops.reshape(in_padded, (N*C, conv_H, conv_W))
 
@@ -65,14 +56,8 @@ class FFTConv2d(Module):
         kh = kw = self.kernel_size
         K = self.weight  # (kh, kw, in_ch, out_ch)
         # create zero-padded kernel in top-left and then FFT
-        # K_pad = ndarray.full((self.in_channels, self.out_channels, conv_H, conv_W), 0.0,
-        #                         dtype="complex32", device=K.device)
-        # place kernel at top-left; note flipping: convolution uses cross-correlation unless you flip kernel.
-        # to implement convolution via multiplication we must place kernel so that linear convolution matches spatial conv.
-        # easiest: flip kernel spatially before placing so that multiplication corresponds to conv.
         K = ops.transpose(K, (0, 2))
         K = ops.transpose(K, (1, 3))
-        # K_flipped = ops.flip(K, (2, 3))
         K_pad = ops.pad(K, (conv_H-kh, conv_W-kw))
 
         # FFT of kernels across spatial dims (per in->out pair)
@@ -81,39 +66,25 @@ class FFTConv2d(Module):
         K_fft = ops.reshape(K_fft, (self.in_channels, self.out_channels, conv_H, conv_W))
 
         # Multiply in frequency domain and sum over in_channels:
-        # For each sample n and out channel o:
-        #   Y_fft[n, o] = sum_c I_fft[n, c] * K_fft[c, o]
-        # We can do broadcasting/matrix multiply in freq domain.
-        # Reshape to broadcast: I_fft -> (N, C, 1, Hf, Wf), K_fft -> (1, C, O, Hf, Wf)
         I_fft_b = ops.broadcast_to(ops.reshape(I_fft, (N, self.in_channels, 1, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
         K_fft_b = ops.broadcast_to(ops.reshape(K_fft, (1, self.in_channels, self.out_channels, conv_H, conv_W)), (N, self.in_channels, self.out_channels, conv_H, conv_W))
-        # elementwise multiply and sum over in_channels -> (N, out_ch, Hf, Wf)
-        Y_fft = ops.summation(I_fft_b * K_fft_b, axes=1)  # sum over in_channels, result (N, out_ch, Hf, Wf)
+        Y_fft = ops.summation(I_fft_b * K_fft_b, axes=1)
 
         # inverse FFT to spatial domain
-
-        y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, conv_H, conv_W)))  # complex result
+        y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, conv_H, conv_W)))
         y_padded = ops.reshape(y_padded, (N, self.out_channels, conv_H, conv_W))
 
-        # normalize: depending on your FFT conventions, if ifft applies 1/(Hf*Wf) then ok; otherwise divide here
-        # Crop to convolution spatial size conv_H x conv_W (top-left)
-        # y_cropped = y_padded[..., :conv_H, :conv_W]   # shape (N, out_ch, conv_H, conv_W)
-        y_cropped = ops.crop(y_padded, (conv_H, conv_W))
+        y_cropped = y_padded[:, :, kh-1 : H, kh-1 : W]
         y_cropped = ops.real(y_cropped)
 
-        # apply stride by subsampling
         if self.stride > 1:
             y_cropped = ops.undilate(y_cropped, (2, 3), self.stride-1)
 
-        # add bias if present: bias shape (out_ch,) -> reshape to (1, out_ch, 1, 1)
         if self.bias is not None:
             b = ops.reshape(self.bias, (1, self.out_channels, 1, 1))
             b = ops.broadcast_to(b, y_cropped.shape)
             y_cropped = y_cropped + b
 
-        # final output: ensure real dtype if inputs/weights are real (drop tiny imag part)
-        # out = ops.real(y_cropped)
-        # return in NCHW: it already is (N, out_ch, H_out, W_out)
         return y_cropped
 
     
