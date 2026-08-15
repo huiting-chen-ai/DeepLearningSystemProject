@@ -56,6 +56,7 @@ class FFTConv2d(Module):
         kh = kw = self.kernel_size
         K = self.weight  # (kh, kw, in_ch, out_ch)
         # create zero-padded kernel in top-left and then FFT
+        K = ops.flip(K, axes=(0, 1))
         K = ops.transpose(K, (0, 2))
         K = ops.transpose(K, (1, 3))
         K_pad = ops.pad(K, (conv_H-kh, conv_W-kw))
