@@ -70,7 +70,7 @@ class FFTConv2d(Module):
 
         # inverse FFT to spatial domain
         y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, Y_fft.shape[2], Y_fft.shape[3])))
-        y_padded = ops.reshape(y_padded, (N, self.out_channels, y_padded[1], y_padded[2]))
+        y_padded = ops.reshape(y_padded, (N, self.out_channels, y_padded.shape[1], y_padded.shape[2]))
 
         y_cropped = ops.crop(y_padded, (kh-1, H, kh-1, W))
         y_cropped = ops.real(y_cropped)
