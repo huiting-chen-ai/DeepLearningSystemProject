@@ -731,13 +731,11 @@ class Crop(TensorOp):
     def __init__(self, ind):
         self.ind = ind
     def compute(self, A):
-        out = A[:, :, :self.ind[0], :self.ind[1]]
+        out = A[:, :, self.ind[0]:self.ind[1], self.ind[2]:self.ind[3]]
         return out
     def gradient(self, out_grad, node):
         _, _, H, W = node.inputs[0].shape
-        pad1 = H-self.ind[0]
-        pad2 = W-self.ind[1]
-        return pad(out_grad, (pad1, pad2))
+        return out_grad.pad((0, 0), (0, 0), (self.ind[0], H-self.ind[1]), (self.ind[2], W-self.ind[3]))
 
 def crop(a, ind):
     return Crop(ind)(a)

@@ -74,7 +74,7 @@ class FFTConv2d(Module):
         y_padded = ops.ifft2d(ops.reshape(Y_fft, (N*self.out_channels, conv_H, conv_W)))
         y_padded = ops.reshape(y_padded, (N, self.out_channels, conv_H, conv_W))
 
-        y_cropped = y_padded[:, :, kh-1 : H, kh-1 : W]
+        y_cropped = ops.crop(y_padded, (kh-1, H, kh-1, W))
         y_cropped = ops.real(y_cropped)
 
         if self.stride > 1:
