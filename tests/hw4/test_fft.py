@@ -167,24 +167,15 @@ def test_nn_fft_forward(s, cin, cout, k, stride, device):
     f = ndl.nn.FFTConv2d(cin, cout, k, stride=stride, device=device)
     x = ndl.init.rand(10, cin, s, s, device=device)
 
-    padded_h = s + k - 1
-    padded_w = s + k - 1
- 
-    pad_w = padded_w - s
-    pad_h = padded_h - s
     z = torch.tensor(x.cached_data.numpy())
     weight = torch.tensor(f.weight.cached_data.numpy().transpose(3, 2, 0, 1))
-    input_padded = torch.nn.functional.pad(z, (0, pad_w, 0, pad_h))
-    padded_filter = torch.nn.functional.pad(weight, (0, padded_w - k, 0, padded_h - k))
- 
-    input_fft_2d = torch.fft.fft2(input_padded, dim=(2, 3))
-    filter_fft_2d = torch.fft.fft2(padded_filter, dim=(2, 3))
 
-    output_fft_2d = torch.einsum('bcij,ocij->boij', input_fft_2d, filter_fft_2d)
- 
-    output_image = torch.fft.ifft2(output_fft_2d, dim=(2,3)).real[:, :, :s + k - 1, :s + k - 1]
+    conv = torch.nn.Conv2d(cin, cout, k, stride=stride, padding=0, bias=False)
+    conv.weight = torch.nn.Parameter(weight)
+    expected = conv(z)
 
-    assert np.linalg.norm(f(x).cached_data.numpy() - output_image.numpy()) < 1e-3
+    result = f(x).cached_data.numpy()
+    assert np.linalg.norm(result - expected.detach().numpy()) < 1e-3
 
 conv_back_params = [
     (4, 1, 1, 3, 1),
