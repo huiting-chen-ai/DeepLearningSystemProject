@@ -300,9 +300,9 @@ def test_op_ifft(Z_shape, backward, device):
     #     y2.backward()
     Ztch = torch.Tensor(_Z).float()
     Ztch.requires_grad=True
-    out_fft = torch.fft.fft2(Ztch)
-    out = torch.fft.ifft2(out_fft)
-    out2 = out.sum()
+    # out_fft = torch.fft.fft2(Ztch)
+    # out = torch.fft.ifft2(out_fft)
+    out2 = Ztch.sum()
     # if backward:
     #     out2.backward()
     # if backward:
@@ -313,4 +313,4 @@ def test_op_ifft(Z_shape, backward, device):
     #     assert err1 < 1e-2, "input grads match"
     #     assert err2 < 1e-2, "weight grads match"
     assert err3 < 1e-1, "outputs match %s, %s" % (y2, out2)
-    assert np.linalg.norm(y.numpy() - out.detach().numpy()) < 1e-3
+    assert np.linalg.norm(y.numpy() - Ztch.detach().numpy()) < 1e-3

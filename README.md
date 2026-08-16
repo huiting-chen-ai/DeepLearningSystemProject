@@ -26,6 +26,10 @@ adjust python code to use complex number
 same shape as the input I pass to FFT, so IFFT can't get the correct result. The problem is solved easily after I realize that I should keep the result of FFT as it is.
 4. I use torch.fft to check my result at start, but then I change to nn.Conv2d. I think nn.Conv2d promises the correct of the expected value.
 
+***Verification***:
+- **Forward pass correctness**: compared against `nn.Conv2d` (PyTorch) with random inputs; norm difference < 1e-3
+- **FFT/IFFT correctness**: verified `ifft(fft(x)) ≈ x` within numerical precision
+
 ### Backward Pass
 ***The backward pass is consist of backward pass of its components, which includes***:
 1. gradient of FFT
