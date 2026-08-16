@@ -1,5 +1,12 @@
 # Project: FFT-Conv2d
-Implementing 2D convolution via the Fast Fourier Transform (FFT) — supporting both forward and backward passes
+Implementing 2D convolution via the Fast Fourier Transform (FFT) — supporting both forward and backward passes.   
+This is the final project. It is based on the code before:
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW0
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW1
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW2
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW3
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW4
+- https://github.com/huiting-chen-ai/DeepLearningSystemHW4Extra
 
 ## Overview
 Standard spatial convolution (nn.Conv2d) slides a kernel over the input, computing dot products at each position — O(H·W·kh·kw) per channel pair. Using the Convolution Theorem, this can be accelerated in the frequency domain: x ∗ k = IFFT( FFT(x) ⊙ FFT(k) ), which has complexity O(H·W·log(H·W)) 
