@@ -30,6 +30,11 @@ same shape as the input I pass to FFT, so IFFT can't get the correct result. The
 - **Forward pass correctness**: compared against `nn.Conv2d` (PyTorch) with random inputs; norm difference < 1e-3
 - **FFT/IFFT correctness**: verified `ifft(fft(x)) ≈ x` within numerical precision
 
+***Lesson learned***:
+- FFT-based convolution is mathematically elegant but requires careful handling of padding and frequency-domain indexing.
+- The FFT result must never be truncated; the full spectrum is needed for invertibility.
+- Complex number support in a custom autograd framework requires non-trivial infrastructure changes.
+
 ### Backward Pass
 ***The backward pass is consist of backward pass of its components, which includes***:
 1. gradient of FFT
