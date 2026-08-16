@@ -33,3 +33,6 @@ same shape as the input I pass to FFT, so IFFT can't get the correct result. The
 3. gradient of pad
 4. gradient of multiply
 5. gradient of undilate
+
+***Problem***:  
+The backward is still in progress, but it should be easier comparing to forward pass. Since the FFT is consist of several simple operations, I can get the gradient by implementing the gradient for the simple operations correctly. I would add a test for the gradient and modify the code later.
